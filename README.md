@@ -2,7 +2,7 @@
 
 An innovative, privacy-focused desktop AI assistant featuring a live interactive 3D avatar, encrypted local memory, and cross-device synchronization.
 
-🌐 **Website** [https://avataryai.netlify.app](https://avataryai.netlify.app) *(Replace with your exact subdomain if needed!)*
+🌐 **Website** [https://avataryai.netlify.app](https://avataryai.netlify.app) 
 
 ---
 
