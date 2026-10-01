@@ -1,6 +1,6 @@
 # AvataryAI 🤖✨
 
-An innovative, privacy-focused desktop AI assistant featuring a live interactive 3D avatar, encrypted local memory, and cross-device synchronization.
+An innovative, privacy-focused browser AI assistant featuring a live interactive 3D avatar, encrypted local memory (it saving on our servers), and cross-device synchronization.
 
 🌐 **Website** [https://avataryai.netlify.app](https://avataryai.netlify.app) 
 
@@ -8,12 +8,12 @@ An innovative, privacy-focused desktop AI assistant featuring a live interactive
 
 ## 🚀 About The Project
 
-**AvataryAI** is designed to bridge the gap between traditional chat-based AI interfaces and immersive, personalized companions. Running locally on your desktop with a secure backend architecture, it combines modern web technologies with powerful AI processing.
+**AvataryAI** is designed to bridge the gap between traditional chat-based AI interfaces and immersive, personalized companions. Running in your browser backend architecture is live on our servers, it combines modern web technologies with powerful AI processing.
 
 ### ✨ Key Features
 * **Interactive 3D Avatar:** Built with Three.js for smooth, real-time visual feedback and animations.
-* **Smart Backend:** Powered by Python and FastAPI, seamlessly integrating the Gemini API and supporting local models (like Ollama).
-* **Encrypted Local Memory:** Your conversations and user profiles stay secure and private.
+* **Smart Backend:** Powered by Python and FastAPI, seamlessly integrating the Gemini API..
+* **Encrypted Local Memory:** Your conversations and user profiles stay secure and private on our servers.
 * **Cross-Device Sync:** Keep your data accessible wherever you need it.
 * **Mobile Support:** Compatible workflows via Termux for on-the-go management.
 
