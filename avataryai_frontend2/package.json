@@ -1,9 +1,0 @@
-{
-  "name": "avataryai-frontend",
-  "private": true,
-  "scripts": {
-    "build": "esbuild src/scene.js --bundle --minify --format=iife --target=es2020 --outfile=assets/scene.bundle.js"
-  },
-  "dependencies": { "three": "0.160.0" },
-  "devDependencies": { "esbuild": "^0.21.5" }
-}
