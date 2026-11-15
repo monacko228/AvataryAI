@@ -2,7 +2,7 @@
 
 An innovative, privacy-focused browser AI assistant featuring a live interactive 3D avatar, encrypted local memory (it saving on our servers), and cross-device synchronization.
 
-🌐 **Website** [https://avataryai.netlify.app](https://avataryai.netlify.app) 
+🌐 **Website** [https://avataryai.netlify.app](https://avataryai.pp.ua) 
 
 ---
 
