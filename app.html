@@ -40,23 +40,25 @@
     -webkit-mask-image: radial-gradient(60% 60% at 40% 50%, #000 0%, transparent 75%);
   }
 
-  #layout {
-    position: relative; z-index: 1; height: 100vh; height: 100dvh;
-    display: grid; grid-template-columns: 1fr var(--chat-w); gap: 20px; padding: 20px;
-  }
-
-  /* ── сцена ── */
-  #stage-wrap { position: relative; min-width: 0; min-height: 0; }
+  /* сцена займає весь екран, чат — скляна панель поверх неї */
+  #layout { position: fixed; inset: 0; z-index: 1; }
+  #stage-wrap { position: fixed; inset: 0; min-width: 0; min-height: 0; }
   #stage { position: absolute; inset: 0; }
+  #stage-wrap::after {   /* м'яке затемнення по краях */
+    content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 2;
+    background: radial-gradient(120% 100% at 38% 50%, rgba(10,10,15,0) 55%, rgba(10,10,15,.45) 100%);
+  }
   #back {
-    position: absolute; top: 4px; left: 6px; z-index: 5; display: inline-flex; align-items: center; gap: 8px;
+    position: fixed; top: 18px; left: 20px; z-index: 6; display: inline-flex; align-items: center; gap: 8px;
     color: var(--text); text-decoration: none; font-weight: 700; letter-spacing: -.02em; font-size: 17px;
-    padding: 8px 12px; border-radius: 10px; transition: background .2s;
+    padding: 8px 14px; border-radius: 12px; transition: background .2s;
+    background: rgba(10,10,15,.5); border: 1px solid rgba(255,255,255,.08);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
   }
   #back span { color: var(--accent); }
   #back b { font-weight: 700; }
   #back small { font-weight: 500; font-size: 13px; color: var(--muted); }
-  #back:hover { background: rgba(255,255,255,.05); }
+  #back:hover { background: rgba(10,10,15,.7); }
 
   #think-bubble {
     position: absolute; left: 0; top: 0; z-index: 4; pointer-events: none; will-change: transform;
@@ -86,8 +88,9 @@
 
   /* ── чат ── */
   #chat {
+    position: fixed; z-index: 5; top: 20px; right: 20px; bottom: 20px; width: var(--chat-w);
     display: flex; flex-direction: column; min-height: 0; border-radius: 20px;
-    background: rgba(26,26,46,.62); border: 1px solid var(--border);
+    background: rgba(22,22,40,.74); border: 1px solid var(--border);
     backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
     box-shadow: 0 24px 60px rgba(0,0,0,.4); overflow: hidden;
   }
@@ -136,8 +139,8 @@
 
   /* ── мобільний ── */
   @media (max-width: 860px) {
-    #layout { grid-template-columns: 1fr; grid-template-rows: minmax(0, 46fr) minmax(0, 54fr); gap: 10px; padding: 10px; }
-    #chat { border-radius: 18px; }
+    #chat { top: auto; left: 10px; right: 10px; bottom: 10px; width: auto; height: 54dvh; border-radius: 18px; }
+    #back { top: 10px; left: 10px; }
     #back small { display: none; }
     .msg { font-size: 14px; }
     #input { font-size: 16px; } /* без авто-зуму iOS */
