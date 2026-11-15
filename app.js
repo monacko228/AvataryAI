@@ -1,8 +1,5 @@
-// ===== AvataryAI Client =====
-// Стани аватара: idle → thinking (чекаємо Gemini) → speaking (грає TTS) → idle.
-// Рот рухається під реальну гучність аудіо (AnalyserNode).
 const API = SERVER_URL;
-
+ 
 const LANG = (navigator.language || "en").toLowerCase().startsWith("uk") ? "uk" : "en";
 const TXT = {
   uk: {
@@ -10,6 +7,7 @@ const TXT = {
     hint: "Безкоштовно: до 20 повідомлень на добу.",
     connecting: "Підключення…", idle: "Онлайн", thinking: "Думає…", speaking: "Говорить…", offline: "Сервер офлайн",
     limit: "Ліміт 20 повідомлень на добу вичерпано. Повертайся завтра!",
+    busy: "AI зараз перевантажений. Спробуй ще раз за хвилину.",
     neterr: "Не вдалося зв'язатися із сервером. Спробуй ще раз.",
     nowebgl: "Не вдалося запустити 3D. Увімкни апаратне прискорення в браузері.",
     welcome: "Привіт! Я Avatary — твій AI-аватар. Запитай мене про що завгодно: новини, погоду, ідеї для проєкту.",
@@ -19,15 +17,16 @@ const TXT = {
     hint: "Free: up to 20 messages per day.",
     connecting: "Connecting…", idle: "Online", thinking: "Thinking…", speaking: "Speaking…", offline: "Server offline",
     limit: "Daily limit of 20 messages reached. Come back tomorrow!",
+    busy: "The AI is busy right now. Please try again in a minute.",
     neterr: "Couldn't reach the server. Please try again.",
     nowebgl: "Couldn't start 3D. Enable hardware acceleration in your browser.",
     welcome: "Hi! I'm Avatary, your AI avatar. Ask me anything: news, weather, project ideas.",
   },
 }[LANG];
-
+ 
 const $ = (id) => document.getElementById(id);
 const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
-
+ 
 let token = null;
 try { token = sessionStorage.getItem("avataryai_token"); } catch (e) {}
 let sessionId = null;
@@ -38,10 +37,10 @@ if (!sessionId) {
 }
 let muted = false;
 try { muted = localStorage.getItem("avataryai_muted") === "1"; } catch (e) {}
-
+ 
 let busy = false;
 let uiState = "connecting";
-
+ 
 // ── Стан: інтерфейс + 3D-аватар ───────────────────────────────
 function setState(s) {
   uiState = s;
@@ -52,7 +51,7 @@ function setState(s) {
   if (window.AvatarScene) window.AvatarScene.setState(s === "thinking" || s === "speaking" ? s : "idle");
 }
 document.addEventListener("avatar-ready", () => setState(uiState));
-
+ 
 function addMessage(role, text) {
   const log = $("log");
   const div = document.createElement("div");
@@ -62,7 +61,6 @@ function addMessage(role, text) {
   log.scrollTop = log.scrollHeight;
 }
 
-// ── Авторизація ───────────────────────────────────────────────
 async function getToken(force) {
   if (token && !force) return token;
   const r = await fetch(`${API}/auth/token`, {
@@ -75,7 +73,7 @@ async function getToken(force) {
   try { sessionStorage.setItem("avataryai_token", token); } catch (e) {}
   return token;
 }
-
+ 
 async function authed(path, body) {
   const call = async (t) => fetch(`${API}${path}`, {
     method: "POST",
@@ -86,8 +84,6 @@ async function authed(path, body) {
   if (r.status === 401) r = await call(await getToken(true));
   return r;
 }
-
-// ── Озвучка + синхронізація рота ──────────────────────────────
 let audioCtx = null;
 function ensureAudio() {
   const AC = window.AudioContext || window.webkitAudioContext;
@@ -96,11 +92,11 @@ function ensureAudio() {
   if (audioCtx.state === "suspended") audioCtx.resume();
   return audioCtx;
 }
-
+ 
 function cleanForSpeech(text) {
   return text.replace(/```[\s\S]*?```/g, " ").replace(/[*_#`>~|]/g, "").replace(/\s+/g, " ").trim();
 }
-
+ 
 async function playTTS(text) {
   const speech = cleanForSpeech(text);
   if (muted || !speech) { setState("idle"); return; }
@@ -116,7 +112,7 @@ async function playTTS(text) {
     if (!r.ok) throw new Error("tts " + r.status);
     url = URL.createObjectURL(await r.blob());
     const audio = new Audio(url);
-
+ 
     let analyser = null, buf = null;
     try {
       const ctx = ensureAudio();
@@ -129,7 +125,7 @@ async function playTTS(text) {
         buf = new Uint8Array(analyser.fftSize);
       }
     } catch (e) { analyser = null; }
-
+ 
     const tick = () => {
       analyser.getByteTimeDomainData(buf);
       let sum = 0;
@@ -147,47 +143,47 @@ async function playTTS(text) {
   }
 }
 
-// ── Чат ───────────────────────────────────────────────────────
 async function sendMessage(text) {
   setState("thinking");
   try {
     const r = await authed("/chat", { message: text, session_id: sessionId });
     if (r.status === 429) { addMessage("err", TXT.limit); setState("idle"); return; }
+    if (r.status === 503) { addMessage("err", TXT.busy); setState("idle"); return; }
     if (!r.ok) throw new Error("chat " + r.status);
     const reply = (await r.json()).reply || "…";
     addMessage("ai", reply.replace(/\*\*(.*?)\*\*/g, "$1"));
-    await playTTS(reply);          // лишаємось у «думає» до початку звуку
+    await playTTS(reply);       
   } catch (e) {
     addMessage("err", TXT.neterr);
     setState("offline");
   }
 }
-
+ 
 async function submit(ev) {
   ev.preventDefault();
   const input = $("input");
   const text = input.value.trim();
   if (!text || busy) return;
-  ensureAudio();                    // розблокувати звук у відповідь на жест користувача
+  ensureAudio();          
   input.value = "";
   addMessage("user", text);
   busy = true; $("send").disabled = true;
   try { await sendMessage(text); }
   finally { busy = false; $("send").disabled = false; input.focus(); }
 }
-
+ 
 function applyI18n() {
   document.documentElement.lang = LANG;
   document.querySelectorAll("[data-i18n]").forEach((el) => { if (TXT[el.dataset.i18n]) el.textContent = TXT[el.dataset.i18n]; });
   document.querySelectorAll("[data-i18n-ph]").forEach((el) => { el.placeholder = TXT[el.dataset.i18nPh]; });
   document.querySelectorAll("[data-i18n-title]").forEach((el) => { el.title = TXT[el.dataset.i18nTitle]; });
 }
-
+ 
 function init() {
   applyI18n();
   setState("connecting");
   addMessage("ai", TXT.welcome);
-
+ 
   const mute = $("mute");
   mute.setAttribute("aria-pressed", muted ? "true" : "false");
   mute.addEventListener("click", () => {
@@ -195,15 +191,14 @@ function init() {
     mute.setAttribute("aria-pressed", muted ? "true" : "false");
     try { localStorage.setItem("avataryai_muted", muted ? "1" : "0"); } catch (e) {}
   });
-
+ 
   $("form").addEventListener("submit", submit);
-
+ 
   if (document.documentElement.classList.contains("scene-failed")) $("loader-text").textContent = TXT.nowebgl;
   new MutationObserver(() => {
     if (document.documentElement.classList.contains("scene-failed")) $("loader-text").textContent = TXT.nowebgl;
   }).observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
-
-  // Перевірка сервера
+ 
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), 7000);
   fetch(`${API}/health`, { signal: ctl.signal })
@@ -212,5 +207,6 @@ function init() {
     .catch(() => setState("offline"))
     .finally(() => clearTimeout(timer));
 }
-
+ 
 document.addEventListener("DOMContentLoaded", init);
+ 
