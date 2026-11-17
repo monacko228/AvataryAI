@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Конфіденційність — AvataryAI</title>
+<meta name="robots" content="noindex">
+<style>
+  :root { --bg:#0A0A0F; --surface:#1A1A2E; --border:#2D2D4E; --text:#F0F0FF; --muted:#9a9ab8; --accent:#7B61FF; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:16px/1.65 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 720px; margin: 0 auto; padding: 40px 16px 64px; }
+  h1 { font-size: 28px; margin: 0 0 6px; letter-spacing: -.02em; }
+  h2 { font-size: 18px; margin: 32px 0 8px; color: #fff; }
+  p, li { color: var(--muted); }
+  li { margin: 4px 0; }
+  b { color: var(--text); }
+  a { color: var(--accent); }
+  .top { margin-bottom: 24px; font-size: 14px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 4px 20px 16px; margin-top: 20px; }
+  small { color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <div class="top"><a href="app.html">← Назад до аватара</a></div>
+  <h1>Конфіденційність</h1>
+  <small>AvataryAI — навчальний дослідницький проєкт. Остання зміна: 17.11.2026.</small>
+
+  <div class="card">
+    <h2>Якщо ти гість (без входу)</h2>
+    <ul>
+      <li>Ми не просимо ні імені, ні пошти.</li>
+      <li>Історія розмови живе лише в пам'яті сервера й зникає після його перезапуску.</li>
+      <li>Для ліміту повідомлень (20 на добу) сервер тимчасово використовує твою IP-адресу. Вона лишається в пам'яті й не записується в базу.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>Якщо ти входиш через Google</h2>
+    <p>Ми зберігаємо <b>лише</b>:</p>
+    <ul>
+      <li>унікальний технічний ідентифікатор Google-акаунта;</li>
+      <li>твоє ім'я (щоб привітатися);</li>
+      <li>тексти твоїх повідомлень і відповідей аватара та час їх надсилання (останні 500).</li>
+    </ul>
+    <p><b>Ми не зберігаємо</b> твою електронну пошту, фото чи пароль. Пароля від Google ми не бачимо взагалі.</p>
+    <p>Навіщо: щоб показувати історію чату й рахувати денний ліміт (40 повідомлень) на акаунт.</p>
+  </div>
+
+  <div class="card">
+    <h2>Куди передаються твої повідомлення</h2>
+    <ul>
+      <li>Текст запиту надсилається до <b>Google Gemini</b>, щоб згенерувати відповідь.</li>
+      <li>Текст відповіді надсилається до сервісу озвучення <b>Microsoft Edge TTS</b>, якщо голос увімкнено. Вимкнути його можна кнопкою з динаміком.</li>
+      <li>Трафік проходить через <b>Cloudflare</b>.</li>
+    </ul>
+    <p>Тому не пиши в чат паролі, адреси, документи й іншу особисту інформацію.</p>
+  </div>
+
+  <div class="card">
+    <h2>Твій контроль</h2>
+    <ul>
+      <li><b>Очистити історію</b> — видаляє всі збережені повідомлення.</li>
+      <li><b>Видалити акаунт</b> — видаляє історію та запис про тебе з бази остаточно.</li>
+      <li><b>Вийти</b> — стирає вхід у цьому браузері.</li>
+    </ul>
+    <p>Ми не продаємо дані й не передаємо їх рекламодавцям. Дані акаунтів не використовуються в дослідженні: воно проводиться окремо й анонімно.</p>
+  </div>
+
+  <div class="card">
+    <h2>Важливо</h2>
+    <p>Аватар — це штучний інтелект і може помилятися. Перевіряй важливу інформацію самостійно.</p>
+    <p>Питання чи прохання про видалення даних: напиши в <a href="https://github.com/monacko228/AvataryAI/issues" rel="noopener">Issues на GitHub</a>.</p>
+  </div>
+</main>
+</body>
+</html>

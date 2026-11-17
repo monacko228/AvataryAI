@@ -136,6 +136,19 @@
   #send:disabled { opacity: .45; cursor: default; }
   #send svg { width: 20px; height: 20px; }
   #hint { padding: 0 18px 14px; font-size: 12px; color: var(--muted); }
+  #hint a { color: var(--muted); text-decoration: underline; text-underline-offset: 2px; }
+  #hint a:hover { color: var(--text); }
+
+  /* ── Акаунт (Google) ── */
+  [hidden] { display: none !important; }
+  #account { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 10px 18px; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--muted); }
+  #account .hi { color: var(--text); font-weight: 600; }
+  #g-btn { min-height: 32px; display: flex; align-items: center; }
+  #acc-user { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; width: 100%; }
+  #acc-user .acts { display: flex; gap: 6px; flex-wrap: wrap; }
+  .lnk { font: inherit; font-size: 12px; color: var(--muted); background: transparent; border: 1px solid var(--border); border-radius: 8px; padding: 4px 9px; cursor: pointer; transition: color .2s, border-color .2s, background .2s; }
+  .lnk:hover { color: var(--text); border-color: var(--muted); background: rgba(255,255,255,.05); }
+  .lnk.danger:hover { color: #fecaca; border-color: rgba(248,113,113,.6); background: rgba(248,113,113,.1); }
 
   /* ── мобільний ── */
   @media (max-width: 860px) {
@@ -174,17 +187,31 @@
         <svg class="off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="m22 9-6 6M16 9l6 6"/></svg>
       </button>
     </header>
+    <div id="account">
+      <div id="acc-guest" style="display:contents">
+        <span data-i18n="loginHint">Увійди, щоб зберігати історію чату</span>
+        <div id="g-btn"></div>
+      </div>
+      <div id="acc-user" hidden>
+        <span><span data-i18n="hi">Привіт,</span> <span class="hi" id="user-name"></span></span>
+        <span class="acts">
+          <button type="button" class="lnk" id="btn-clear" data-i18n="clear">Очистити історію</button>
+          <button type="button" class="lnk" id="btn-logout" data-i18n="logout">Вийти</button>
+          <button type="button" class="lnk danger" id="btn-delete" data-i18n="delAcc">Видалити акаунт</button>
+        </span>
+      </div>
+    </div>
     <div id="log" role="log" aria-live="polite"></div>
     <form id="form" autocomplete="off">
       <input id="input" type="text" maxlength="500" enterkeyhint="send" data-i18n-ph="placeholder" placeholder="Напиши щось…" aria-label="Message">
       <button id="send" type="submit" aria-label="Send"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
     </form>
-    <div id="hint" data-i18n="hint">Безкоштовно: до 20 повідомлень на добу.</div>
+    <div id="hint"><span id="hint-text" data-i18n="hint">Безкоштовно: до 20 повідомлень на добу.</span> · <a href="privacy.html" target="_blank" rel="noopener" data-i18n="privacy">Конфіденційність</a></div>
   </aside>
 </main>
 
 <script src="config.js"></script>
 <script src="assets/scene.bundle.js?v=2"></script>
-<script src="app.js"></script>
+<script src="app.js?v=3"></script>
 </body>
 </html>
