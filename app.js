@@ -14,6 +14,16 @@ const TXT = {
     neterr: "Не вдалося зв'язатися із сервером. Спробуй ще раз.",
     nowebgl: "Не вдалося запустити 3D. Увімкни апаратне прискорення в браузері.",
     welcome: "Привіт! Я Avatary — твій AI-аватар. Запитай мене про що завгодно: новини, погоду, ідеї для проєкту.",
+    welcomeUser: "З поверненням, {name}! Про що поговоримо?",
+    loginHint: "Увійди, щоб зберігати історію чату", hi: "Привіт,", clear: "Очистити історію", logout: "Вийти", delAcc: "Видалити акаунт",
+    privacy: "Конфіденційність",
+    hintGuest: "Гість: до 20 повідомлень на добу.", hintUser: "Сьогодні використано {used} із {limit}.",
+    limitUser: "Денний ліміт ({limit}) вичерпано. Повертайся завтра!",
+    loginFail: "Не вдалося увійти через Google. Спробуй ще раз.",
+    expired: "Сесія завершилась. Увійди ще раз.",
+    confirmClear: "Видалити всю історію чату? Це незворотно.",
+    confirmDelete: "Видалити акаунт і всю історію назавжди? Це незворотно.",
+    deleted: "Акаунт і історію видалено.",
   },
   en: {
     back: "← to site", loading: "Loading the room…", placeholder: "Say something…", mute: "Voice",
@@ -24,6 +34,16 @@ const TXT = {
     neterr: "Couldn't reach the server. Please try again.",
     nowebgl: "Couldn't start 3D. Enable hardware acceleration in your browser.",
     welcome: "Hi! I'm Avatary, your AI avatar. Ask me anything: news, weather, project ideas.",
+    welcomeUser: "Welcome back, {name}! What shall we talk about?",
+    loginHint: "Sign in to keep your chat history", hi: "Hi,", clear: "Clear history", logout: "Sign out", delAcc: "Delete account",
+    privacy: "Privacy",
+    hintGuest: "Guest: up to 20 messages per day.", hintUser: "Used {used} of {limit} today.",
+    limitUser: "Daily limit ({limit}) reached. Come back tomorrow!",
+    loginFail: "Couldn't sign in with Google. Please try again.",
+    expired: "Session expired. Please sign in again.",
+    confirmClear: "Delete the whole chat history? This can't be undone.",
+    confirmDelete: "Delete your account and all history forever? This can't be undone.",
+    deleted: "Account and history deleted.",
   },
 }[LANG];
 
@@ -38,6 +58,8 @@ if (!sessionId) {
   sessionId = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random());
   try { sessionStorage.setItem("avataryai_session", sessionId); } catch (e) {}
 }
+let userToken = null, userName = "", userLimit = 40;
+try { userToken = localStorage.getItem("avataryai_user_token"); userName = localStorage.getItem("avataryai_user_name") || ""; } catch (e) {}
 let muted = false;
 try { muted = localStorage.getItem("avataryai_muted") === "1"; } catch (e) {}
 
@@ -87,6 +109,110 @@ async function authed(path, body) {
   let r = await call(await getToken());
   if (r.status === 401) r = await call(await getToken(true));
   return r;
+}
+
+// ── Акаунт (Google) та історія ────────────────────────────────
+function setHint(text) { const h = $("hint-text"); if (h) h.textContent = text; }
+
+function renderAccount() {
+  const logged = !!userToken;
+  $("acc-guest").hidden = logged;
+  $("acc-user").hidden = !logged;
+  $("user-name").textContent = userName || "";
+  if (!logged) setHint(TXT.hintGuest);
+}
+
+function saveUserSession(tok, name) {
+  userToken = tok; userName = name || "";
+  try {
+    if (tok) { localStorage.setItem("avataryai_user_token", tok); localStorage.setItem("avataryai_user_name", userName); }
+    else { localStorage.removeItem("avataryai_user_token"); localStorage.removeItem("avataryai_user_name"); }
+  } catch (e) {}
+}
+
+function resetLog(withWelcome) {
+  $("log").textContent = "";
+  if (withWelcome) addMessage("ai", userToken && userName ? TXT.welcomeUser.replace("{name}", userName) : TXT.welcome);
+}
+
+function logout(expired) {
+  saveUserSession(null, "");
+  try { if (window.google && google.accounts && google.accounts.id) google.accounts.id.disableAutoSelect(); } catch (e) {}
+  renderAccount();
+  resetLog(true);
+  if (expired) addMessage("err", TXT.expired);
+}
+
+async function userFetch(method, path, body) {
+  const r = await fetch(`${API}${path}`, {
+    method,
+    headers: Object.assign({ Authorization: `Bearer ${userToken}` }, body ? { "Content-Type": "application/json" } : {}),
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (r.status === 401) logout(true);   // токен прострочений або акаунт видалено
+  return r;
+}
+
+async function loadHistory() {
+  if (!userToken) return;
+  try {
+    const r = await userFetch("GET", "/me/history");
+    if (!r.ok) return;
+    const d = await r.json();
+    if (d.name) { userName = d.name; try { localStorage.setItem("avataryai_user_name", userName); } catch (e) {} }
+    userLimit = d.limit || userLimit;
+    renderAccount();
+    setHint(TXT.hintUser.replace("{used}", d.used).replace("{limit}", d.limit));
+    resetLog(false);
+    if (!d.messages.length) addMessage("ai", TXT.welcomeUser.replace("{name}", userName || ""));
+    d.messages.forEach((m) => addMessage(m.role === "user" ? "user" : "ai", m.text));
+  } catch (e) { /* залишаємо як є */ }
+}
+
+async function onGoogleCredential(resp) {
+  try {
+    const r = await fetch(`${API}/auth/google`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ credential: resp.credential }),
+    });
+    if (!r.ok) throw new Error("login " + r.status);
+    const d = await r.json();
+    saveUserSession(d.token, d.name);
+    renderAccount();
+    await loadHistory();
+  } catch (e) {
+    addMessage("err", TXT.loginFail);
+  }
+}
+
+function initGoogle() {
+  if (typeof GOOGLE_CLIENT_ID === "undefined" || !GOOGLE_CLIENT_ID) { $("acc-guest").hidden = true; return; }
+  const s = document.createElement("script");
+  s.src = "https://accounts.google.com/gsi/client";
+  s.async = true;
+  s.onload = () => {
+    try {
+      google.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, callback: onGoogleCredential, auto_select: false });
+      google.accounts.id.renderButton($("g-btn"), { theme: "filled_black", size: "medium", shape: "pill", text: "signin_with", locale: LANG });
+    } catch (e) { $("acc-guest").hidden = true; }
+  };
+  s.onerror = () => { $("acc-guest").hidden = true; };   // напр. скрипт заблокований розширенням
+  document.head.appendChild(s);
+}
+
+function initAccountButtons() {
+  $("btn-logout").addEventListener("click", () => logout(false));
+  $("btn-clear").addEventListener("click", async () => {
+    if (!confirm(TXT.confirmClear)) return;
+    const r = await userFetch("DELETE", "/me/history");
+    if (r.ok) { resetLog(true); setHint(TXT.hintUser.replace("{used}", "?").replace("{limit}", userLimit)); loadHistory(); }
+  });
+  $("btn-delete").addEventListener("click", async () => {
+    if (!confirm(TXT.confirmDelete)) return;
+    const r = await userFetch("DELETE", "/me");
+    if (r.ok) { logout(false); addMessage("ai", TXT.deleted); }
+  });
 }
 
 // ── Озвучка + синхронізація рота ──────────────────────────────
@@ -153,11 +279,20 @@ async function playTTS(text) {
 async function sendMessage(text) {
   setState("thinking");
   try {
-    const r = await authed("/chat", { message: text, session_id: sessionId });
-    if (r.status === 429) { addMessage("err", TXT.limit); setState("idle"); return; }
+    const asUser = !!userToken;
+    const r = asUser
+      ? await userFetch("POST", "/me/chat", { message: text })
+      : await authed("/chat", { message: text, session_id: sessionId });
+    if (asUser && !userToken) { setState("idle"); return; }   // сесія завершилась, logout() уже показав повідомлення
+    if (r.status === 429) { addMessage("err", asUser ? TXT.limitUser.replace("{limit}", userLimit) : TXT.limit); setState("idle"); return; }
     if (r.status === 503) { addMessage("err", TXT.busy); setState("idle"); return; }
     if (!r.ok) throw new Error("chat " + r.status);
-    const reply = (await r.json()).reply || "…";
+    const data = await r.json();
+    const reply = data.reply || "…";
+    if (asUser && data.limit) {
+      userLimit = data.limit;
+      setHint(TXT.hintUser.replace("{used}", data.used).replace("{limit}", data.limit));
+    }
     addMessage("ai", reply.replace(/\*\*(.*?)\*\*/g, "$1"));
     await playTTS(reply);          // лишаємось у «думає» до початку звуку
   } catch (e) {
@@ -189,7 +324,11 @@ function applyI18n() {
 function init() {
   applyI18n();
   setState("connecting");
-  addMessage("ai", TXT.welcome);
+  addMessage("ai", userToken && userName ? TXT.welcomeUser.replace("{name}", userName) : TXT.welcome);
+  renderAccount();
+  initAccountButtons();
+  initGoogle();
+  loadHistory();
 
   const mute = $("mute");
   mute.setAttribute("aria-pressed", muted ? "true" : "false");
