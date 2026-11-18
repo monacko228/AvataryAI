@@ -21,7 +21,9 @@ const TXT = {
     limitUser: "Денний ліміт ({limit}) вичерпано. Повертайся завтра!",
     loginFail: "Не вдалося увійти через Google. Спробуй ще раз.",
     expired: "Сесія завершилась. Увійди ще раз.",
-    confirmClear: "Видалити всю історію чату? Це незворотно.",
+    confirmClear: "Видалити всі чати? Це незворотно. Денний ліміт повідомлень при цьому не скидається.",
+    newChat: "+ Новий чат", chatsBtn: "Чати", noChats: "Поки що немає чатів", clearAll: "Видалити всі чати",
+    confirmDelChat: "Видалити цей чат?", delChat: "Видалити чат",
     confirmDelete: "Видалити акаунт і всю історію назавжди? Це незворотно.",
     deleted: "Акаунт і історію видалено.",
   },
@@ -41,7 +43,9 @@ const TXT = {
     limitUser: "Daily limit ({limit}) reached. Come back tomorrow!",
     loginFail: "Couldn't sign in with Google. Please try again.",
     expired: "Session expired. Please sign in again.",
-    confirmClear: "Delete the whole chat history? This can't be undone.",
+    confirmClear: "Delete all chats? This can't be undone. Your daily message limit is not reset.",
+    newChat: "+ New chat", chatsBtn: "Chats", noChats: "No chats yet", clearAll: "Delete all chats",
+    confirmDelChat: "Delete this chat?", delChat: "Delete chat",
     confirmDelete: "Delete your account and all history forever? This can't be undone.",
     deleted: "Account and history deleted.",
   },
@@ -59,6 +63,7 @@ if (!sessionId) {
   try { sessionStorage.setItem("avataryai_session", sessionId); } catch (e) {}
 }
 let userToken = null, userName = "", userLimit = 40;
+let currentChatId = null, chatList = [];
 try { userToken = localStorage.getItem("avataryai_user_token"); userName = localStorage.getItem("avataryai_user_name") || ""; } catch (e) {}
 let muted = false;
 try { muted = localStorage.getItem("avataryai_muted") === "1"; } catch (e) {}
@@ -137,6 +142,8 @@ function resetLog(withWelcome) {
 
 function logout(expired) {
   saveUserSession(null, "");
+  currentChatId = null; chatList = [];
+  showPane(false);
   try { if (window.google && google.accounts && google.accounts.id) google.accounts.id.disableAutoSelect(); } catch (e) {}
   renderAccount();
   resetLog(true);
@@ -153,19 +160,99 @@ async function userFetch(method, path, body) {
   return r;
 }
 
-async function loadHistory() {
+function showPane(open) {
+  const pane = $("chats-pane");
+  if (!pane) return;
+  pane.hidden = !open;
+  $("log").hidden = open;
+  $("btn-chats").classList.toggle("on", open);
+  $("btn-chats").setAttribute("aria-expanded", open ? "true" : "false");
+}
+
+function fmtDate(ts) {
+  const d = new Date(ts * 1000), now = new Date();
+  if (d.toDateString() === now.toDateString()) return d.toLocaleTimeString(LANG, { hour: "2-digit", minute: "2-digit" });
+  return d.toLocaleDateString(LANG, { day: "2-digit", month: "2-digit" });
+}
+
+function renderChats() {
+  const list = $("chats-list");
+  list.textContent = "";
+  $("chats-empty").hidden = chatList.length > 0;
+  $("chats-count").textContent = chatList.length ? "(" + chatList.length + ")" : "";
+  chatList.forEach((c) => {
+    const row = document.createElement("div");
+    row.className = "chat-item" + (c.id === currentChatId ? " active" : "");
+    const open = document.createElement("button");
+    open.type = "button"; open.className = "open";
+    const t = document.createElement("span"); t.className = "t"; t.textContent = c.title || "…";
+    const d = document.createElement("span"); d.className = "d"; d.textContent = fmtDate(c.updated);
+    open.append(t, d);
+    open.addEventListener("click", () => openChat(c.id));
+    const x = document.createElement("button");
+    x.type = "button"; x.className = "x"; x.textContent = "×"; x.title = TXT.delChat; x.setAttribute("aria-label", TXT.delChat);
+    x.addEventListener("click", () => deleteChat(c.id));
+    row.append(open, x);
+    list.appendChild(row);
+  });
+}
+
+function rememberChat() {
+  try { if (currentChatId) localStorage.setItem("avataryai_last_chat", String(currentChatId)); else localStorage.removeItem("avataryai_last_chat"); } catch (e) {}
+}
+
+async function loadChats() {
+  const r = await userFetch("GET", "/me/chats");
+  if (!r.ok) return false;
+  chatList = (await r.json()).chats || [];
+  renderChats();
+  return true;
+}
+
+function newChat() {
+  currentChatId = null;
+  rememberChat();
+  resetLog(true);
+  renderChats();
+  showPane(false);
+  $("input").focus();
+}
+
+async function openChat(id) {
+  const r = await userFetch("GET", "/me/chats/" + id);
+  if (!r.ok) { if (userToken) { await loadChats(); newChat(); } return; }
+  const d = await r.json();
+  currentChatId = id;
+  rememberChat();
+  resetLog(false);
+  d.messages.forEach((m) => addMessage(m.role === "user" ? "user" : "ai", m.text));
+  renderChats();
+  showPane(false);
+}
+
+async function deleteChat(id) {
+  if (!confirm(TXT.confirmDelChat)) return;
+  const r = await userFetch("DELETE", "/me/chats/" + id);
+  if (!r.ok) return;
+  await loadChats();
+  if (id === currentChatId) newChat(); else renderChats();
+}
+
+async function loadAccount() {
   if (!userToken) return;
   try {
-    const r = await userFetch("GET", "/me/history");
+    const r = await userFetch("GET", "/me");
     if (!r.ok) return;
     const d = await r.json();
     if (d.name) { userName = d.name; try { localStorage.setItem("avataryai_user_name", userName); } catch (e) {} }
     userLimit = d.limit || userLimit;
     renderAccount();
     setHint(TXT.hintUser.replace("{used}", d.used).replace("{limit}", d.limit));
-    resetLog(false);
-    if (!d.messages.length) addMessage("ai", TXT.welcomeUser.replace("{name}", userName || ""));
-    d.messages.forEach((m) => addMessage(m.role === "user" ? "user" : "ai", m.text));
+    if (!(await loadChats())) return;
+    let last = null;
+    try { last = parseInt(localStorage.getItem("avataryai_last_chat") || "", 10); } catch (e) {}
+    const target = chatList.find((c) => c.id === last) || null;   // відновлюємо останній відкритий чат
+    if (target) await openChat(target.id); else newChat();
   } catch (e) { /* залишаємо як є */ }
 }
 
@@ -180,7 +267,7 @@ async function onGoogleCredential(resp) {
     const d = await r.json();
     saveUserSession(d.token, d.name);
     renderAccount();
-    await loadHistory();
+    await loadAccount();
   } catch (e) {
     addMessage("err", TXT.loginFail);
   }
@@ -203,10 +290,12 @@ function initGoogle() {
 
 function initAccountButtons() {
   $("btn-logout").addEventListener("click", () => logout(false));
+  $("btn-new").addEventListener("click", newChat);
+  $("btn-chats").addEventListener("click", () => showPane($("chats-pane").hidden));
   $("btn-clear").addEventListener("click", async () => {
     if (!confirm(TXT.confirmClear)) return;
-    const r = await userFetch("DELETE", "/me/history");
-    if (r.ok) { resetLog(true); setHint(TXT.hintUser.replace("{used}", "?").replace("{limit}", userLimit)); loadHistory(); }
+    const r = await userFetch("DELETE", "/me/chats");
+    if (r.ok) { chatList = []; newChat(); const i = await userFetch("GET", "/me"); if (i.ok) { const d = await i.json(); setHint(TXT.hintUser.replace("{used}", d.used).replace("{limit}", d.limit)); } }
   });
   $("btn-delete").addEventListener("click", async () => {
     if (!confirm(TXT.confirmDelete)) return;
@@ -281,14 +370,20 @@ async function sendMessage(text) {
   try {
     const asUser = !!userToken;
     const r = asUser
-      ? await userFetch("POST", "/me/chat", { message: text })
+      ? await userFetch("POST", "/me/chat", { message: text, chat_id: currentChatId })
       : await authed("/chat", { message: text, session_id: sessionId });
     if (asUser && !userToken) { setState("idle"); return; }   // сесія завершилась, logout() уже показав повідомлення
     if (r.status === 429) { addMessage("err", asUser ? TXT.limitUser.replace("{limit}", userLimit) : TXT.limit); setState("idle"); return; }
     if (r.status === 503) { addMessage("err", TXT.busy); setState("idle"); return; }
+    if (asUser && r.status === 404) { await loadChats(); newChat(); addMessage("err", TXT.neterr); setState("idle"); return; }
     if (!r.ok) throw new Error("chat " + r.status);
     const data = await r.json();
     const reply = data.reply || "…";
+    if (asUser && r.ok && data.chat_id) {
+      const isNew = currentChatId !== data.chat_id;
+      currentChatId = data.chat_id; rememberChat();
+      if (isNew) await loadChats(); else { const c = chatList.find((x) => x.id === data.chat_id); if (c) c.updated = Math.floor(Date.now() / 1000); chatList.sort((a, b) => b.updated - a.updated); renderChats(); }
+    }
     if (asUser && data.limit) {
       userLimit = data.limit;
       setHint(TXT.hintUser.replace("{used}", data.used).replace("{limit}", data.limit));
@@ -328,7 +423,7 @@ function init() {
   renderAccount();
   initAccountButtons();
   initGoogle();
-  loadHistory();
+  loadAccount();
 
   const mute = $("mute");
   mute.setAttribute("aria-pressed", muted ? "true" : "false");
