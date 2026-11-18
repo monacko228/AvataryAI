@@ -148,6 +148,23 @@
   #acc-user .acts { display: flex; gap: 6px; flex-wrap: wrap; }
   .lnk { font: inherit; font-size: 12px; color: var(--muted); background: transparent; border: 1px solid var(--border); border-radius: 8px; padding: 4px 9px; cursor: pointer; transition: color .2s, border-color .2s, background .2s; }
   .lnk:hover { color: var(--text); border-color: var(--muted); background: rgba(255,255,255,.05); }
+  .lnk.primary { color: #fff; background: var(--accent); border-color: var(--accent); }
+  .lnk.primary:hover { background: var(--accent-d); border-color: var(--accent-d); }
+  .lnk.on { color: var(--text); border-color: var(--accent); background: rgba(123,97,255,.16); }
+
+  /* ── Список чатів ── */
+  #chats-pane { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 14px 14px 12px; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+  #chats-list { display: flex; flex-direction: column; gap: 6px; }
+  .chat-item { display: flex; align-items: center; gap: 4px; border: 1px solid var(--border); border-radius: 12px; background: rgba(45,45,78,.35); transition: border-color .2s, background .2s; }
+  .chat-item:hover { border-color: var(--muted); }
+  .chat-item.active { border-color: var(--accent); background: rgba(123,97,255,.16); }
+  .chat-item .open { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; text-align: left; font: inherit; color: var(--text); background: transparent; border: 0; padding: 10px 12px; cursor: pointer; }
+  .chat-item .t { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .chat-item .d { font-size: 11px; color: var(--muted); }
+  .chat-item .x { flex: none; width: 30px; height: 30px; margin-right: 6px; display: grid; place-items: center; border: 0; border-radius: 8px; background: transparent; color: var(--muted); cursor: pointer; font-size: 18px; line-height: 1; }
+  .chat-item .x:hover { color: #fecaca; background: rgba(248,113,113,.12); }
+  #chats-empty { color: var(--muted); font-size: 13px; text-align: center; padding: 18px 0; }
+  .pane-foot { margin-top: auto; padding-top: 10px; border-top: 1px solid var(--border); display: flex; gap: 6px; flex-wrap: wrap; }
   .lnk.danger:hover { color: #fecaca; border-color: rgba(248,113,113,.6); background: rgba(248,113,113,.1); }
 
   /* ── мобільний ── */
@@ -195,10 +212,18 @@
       <div id="acc-user" hidden>
         <span><span data-i18n="hi">Привіт,</span> <span class="hi" id="user-name"></span></span>
         <span class="acts">
-          <button type="button" class="lnk" id="btn-clear" data-i18n="clear">Очистити історію</button>
-          <button type="button" class="lnk" id="btn-logout" data-i18n="logout">Вийти</button>
-          <button type="button" class="lnk danger" id="btn-delete" data-i18n="delAcc">Видалити акаунт</button>
+          <button type="button" class="lnk primary" id="btn-new" data-i18n="newChat">+ Новий чат</button>
+          <button type="button" class="lnk" id="btn-chats" aria-expanded="false"><span data-i18n="chatsBtn">Чати</span> <span id="chats-count"></span></button>
         </span>
+      </div>
+    </div>
+    <div id="chats-pane" hidden>
+      <div id="chats-list"></div>
+      <div id="chats-empty" hidden data-i18n="noChats">Поки що немає чатів</div>
+      <div class="pane-foot">
+        <button type="button" class="lnk danger" id="btn-clear" data-i18n="clearAll">Видалити всі чати</button>
+        <button type="button" class="lnk" id="btn-logout" data-i18n="logout">Вийти</button>
+        <button type="button" class="lnk danger" id="btn-delete" data-i18n="delAcc">Видалити акаунт</button>
       </div>
     </div>
     <div id="log" role="log" aria-live="polite"></div>
@@ -210,8 +235,8 @@
   </aside>
 </main>
 
-<script src="config.js"></script>
+<script src="config.js?v=2"></script>
 <script src="assets/scene.bundle.js?v=2"></script>
-<script src="app.js?v=3"></script>
+<script src="app.js?v=4"></script>
 </body>
 </html>
