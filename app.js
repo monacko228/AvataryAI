@@ -84,6 +84,15 @@ try {
 } catch (e) {}
 try { const qm = new URLSearchParams(location.search).get("mode"); if (qm === "text" || qm === "avatar") mode = qm; } catch (e) {}
 
+// Кнопка режиму «Без 3D» і дослідження доступні лише за посиланням /man=<код>; у звичайній версії завжди аватар
+let manCode = "";
+try {
+  const mm2 = location.pathname.match(/man=([\w-]{1,20})/) || location.search.match(/[?&]man=([\w-]{1,20})/);
+  if (mm2) { if (mm2[1] === "off") localStorage.removeItem("avataryai_man"); else localStorage.setItem("avataryai_man", mm2[1]); }
+  manCode = localStorage.getItem("avataryai_man") || "";
+} catch (e) {}
+if (manCode) document.documentElement.classList.add("research"); else mode = "avatar";
+
 let busy = false;
 let uiState = "connecting";
 
