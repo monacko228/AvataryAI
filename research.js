@@ -170,7 +170,7 @@
       const btn = form.querySelector("button[type=submit]"); btn.disabled = true;
       const r = await post("/r/survey", { pid: pid(), av, tx, pref: v("pref"), age: v("age"), ai_exp: parseInt(v("exp"), 10) || null, comment: ta.value, order_first: get(K.first) || "" });
       if (r && r.ok) { set(K.done, "1"); const bar = $("invite"); if (bar) bar.remove(); overlay([el("h2", {}, T.sTitle), el("p", {}, T.thanks), el("div", { class: "r-actions" }, el("button", { class: "r-btn primary", type: "button", onclick: closeOverlay }, T.iClose))]); }
-      else { btn.disabled = false; err.textContent = T.errNet; }
+      else { btn.disabled = false; err.textContent = T.errNet + " (" + (r ? r.status : "network") + ")"; }
     });
     overlay(form);
   }
