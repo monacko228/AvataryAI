@@ -49,12 +49,23 @@
     background: radial-gradient(120% 100% at 38% 50%, rgba(10,10,15,0) 55%, rgba(10,10,15,.45) 100%);
   }
   #back {
-    position: fixed; top: 18px; left: 20px; z-index: 6; display: inline-flex; align-items: center; gap: 8px;
+    display: inline-flex; align-items: center; gap: 8px;
     color: var(--text); text-decoration: none; font-weight: 700; letter-spacing: -.02em; font-size: 17px;
     padding: 8px 14px; border-radius: 12px; transition: background .2s;
     background: rgba(10,10,15,.5); border: 1px solid rgba(255,255,255,.08);
     backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
   }
+  #topbar { position: fixed; top: 18px; left: 20px; z-index: 8; display: flex; align-items: center; gap: 8px; }
+  #custom-btn {
+    display: none; align-items: center; gap: 8px; font: inherit; font-size: 14px; font-weight: 600; color: var(--text); cursor: pointer;
+    padding: 8px 14px; border-radius: 12px; background: rgba(10,10,15,.5); border: 1px solid rgba(255,255,255,.08);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); transition: background .2s, border-color .2s;
+  }
+  html.scene-ready #custom-btn { display: inline-flex; }
+  #custom-btn:hover { background: rgba(10,10,15,.7); }
+  #custom-btn[aria-expanded="true"] { border-color: var(--accent); background: rgba(123,97,255,.25); }
+  #custom-btn svg { width: 16px; height: 16px; }
+  html.customizing #chat { display: none; }   /* під час кастомізації чат ховаємо: кімната на весь екран */
   #back span { color: var(--accent); }
   #back b { font-weight: 700; }
   #back small { font-weight: 500; font-size: 13px; color: var(--muted); }
@@ -148,6 +159,35 @@
   #acc-user .acts { display: flex; gap: 6px; flex-wrap: wrap; }
   .lnk { font: inherit; font-size: 12px; color: var(--muted); background: transparent; border: 1px solid var(--border); border-radius: 8px; padding: 4px 9px; cursor: pointer; transition: color .2s, border-color .2s, background .2s; }
   .lnk:hover { color: var(--text); border-color: var(--muted); background: rgba(255,255,255,.05); }
+  /* ── Панель кастомізації ── */
+  #custom {
+    position: fixed; z-index: 7; top: 78px; left: 20px; bottom: 20px; width: 340px; display: flex; flex-direction: column;
+    border-radius: 22px; background: rgba(22,22,40,.8); border: 1px solid var(--border); overflow: hidden;
+    backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); box-shadow: 0 20px 60px rgba(0,0,0,.45);
+  }
+  #custom header { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 10px; }
+  #custom header b { font-size: 16px; letter-spacing: -.01em; }
+  #custom-close { width: 32px; height: 32px; border: 1px solid var(--border); border-radius: 9px; background: transparent; color: var(--text); font-size: 18px; line-height: 1; cursor: pointer; }
+  #custom-close:hover { background: rgba(255,255,255,.07); }
+  #custom-tabs { display: flex; gap: 4px; padding: 0 12px 10px; border-bottom: 1px solid var(--border); overflow-x: auto; scrollbar-width: none; }
+  #custom-tabs button { flex: 1 1 auto; font: inherit; font-size: 13px; color: var(--muted); background: transparent; border: 0; border-radius: 9px; padding: 7px 8px; white-space: nowrap; cursor: pointer; transition: color .2s, background .2s; }
+  #custom-tabs button:hover { color: var(--text); }
+  #custom-tabs button[aria-selected="true"] { color: #fff; background: var(--accent); }
+  #custom-body { flex: 1; min-height: 0; overflow-y: auto; padding: 6px 16px 12px; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+  .opt { padding: 12px 0 4px; }
+  .opt-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px; }
+  .opt-ctl { display: flex; flex-wrap: wrap; gap: 8px; }
+  .sw { width: 30px; height: 30px; border-radius: 50%; border: 2px solid rgba(255,255,255,.14); cursor: pointer; padding: 0; position: relative; transition: transform .15s, border-color .15s; }
+  .sw:hover { transform: scale(1.1); }
+  .sw[aria-pressed="true"] { border-color: #fff; box-shadow: 0 0 0 2px var(--accent); }
+  .sw.none { background: rgba(255,255,255,.06); }
+  .sw.none::after { content: ''; position: absolute; left: 50%; top: 3px; bottom: 3px; width: 2px; background: var(--muted); transform: translateX(-50%) rotate(45deg); }
+  .chip { font: inherit; font-size: 13px; color: var(--text); background: rgba(45,45,78,.5); border: 1px solid var(--border); border-radius: 10px; padding: 6px 11px; cursor: pointer; transition: background .15s, border-color .15s; }
+  .chip:hover { border-color: var(--muted); }
+  .chip[aria-pressed="true"] { background: rgba(123,97,255,.28); border-color: var(--accent); color: #fff; }
+  #custom footer { display: flex; gap: 8px; padding: 12px 16px 16px; border-top: 1px solid var(--border); }
+  #custom footer .lnk { padding: 8px 12px; font-size: 13px; }
+  #custom footer .primary { margin-left: auto; }
   .lnk.primary { color: #fff; background: var(--accent); border-color: var(--accent); }
   .lnk.primary:hover { background: var(--accent-d); border-color: var(--accent-d); }
   .lnk.on { color: var(--text); border-color: var(--accent); background: rgba(123,97,255,.16); }
@@ -167,11 +207,81 @@
   .pane-foot { margin-top: auto; padding-top: 10px; border-top: 1px solid var(--border); display: flex; gap: 6px; flex-wrap: wrap; }
   .lnk.danger:hover { color: #fecaca; border-color: rgba(248,113,113,.6); background: rgba(248,113,113,.1); }
 
+
+  /* ── кнопка режиму «Без 3D» ── */
+  #mode-btn {
+    display: inline-flex; align-items: center; gap: 8px; font: inherit; font-size: 14px; font-weight: 600; color: var(--text); cursor: pointer;
+    padding: 8px 14px; border-radius: 12px; background: rgba(10,10,15,.5); border: 1px solid rgba(255,255,255,.08);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); transition: background .2s, border-color .2s;
+  }
+  #mode-btn:hover { background: rgba(10,10,15,.7); }
+  #mode-btn[aria-pressed="true"] { border-color: var(--accent); background: rgba(123,97,255,.25); }
+  #mode-btn svg { width: 16px; height: 16px; }
+  #mode-btn .slash { display: none; }
+  #mode-btn[aria-pressed="true"] .slash { display: block; }
+
+  /* ── текстовий режим: без 3D, без голосу, чат по центру ── */
+  html.text-mode #stage-wrap > #stage, html.text-mode #think-bubble, html.text-mode #loader, html.text-mode #stage-wrap::after { display: none; }
+  html.text-mode #custom-btn, html.text-mode #custom, html.text-mode #mute { display: none !important; }
+  html.text-mode #chat { right: auto; left: 50%; transform: translateX(-50%); width: min(760px, calc(100vw - 40px)); top: 70px; bottom: 20px; background: rgba(22,22,40,.9); }
+  html.text-mode #topbar { z-index: 8; }
+
+  /* ── дослідження: банер згоди, анкета ── */
+  #consent {
+    position: fixed; z-index: 30; left: 20px; bottom: 20px; width: min(430px, calc(100vw - 40px));
+    background: rgba(22,22,40,.95); border: 1px solid var(--accent); border-radius: 16px; padding: 16px 18px;
+    box-shadow: 0 24px 60px rgba(0,0,0,.5); font-size: 14px; line-height: 1.5;
+    backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+  }
+  #consent b { display: block; margin-bottom: 4px; font-size: 15px; }
+  #consent p { color: var(--muted); margin-bottom: 12px; }
+  #consent .row, .r-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  #consent a, .r-modal a { color: var(--muted); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+  .r-btn { font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; color: var(--text); padding: 8px 14px; border-radius: 10px; background: transparent; border: 1px solid var(--border); }
+  .r-btn:hover { border-color: var(--muted); background: rgba(255,255,255,.05); }
+  .r-btn.primary { background: var(--accent); border-color: var(--accent); }
+  .r-btn.primary:hover { background: var(--accent-d); }
+  .r-btn.danger:hover { color: #fecaca; border-color: rgba(248,113,113,.6); background: rgba(248,113,113,.1); }
+  #invite { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0 14px 10px; padding: 10px 12px; border-radius: 12px; font-size: 13px; background: rgba(123,97,255,.16); border: 1px solid rgba(123,97,255,.5); }
+  #invite span { flex: 1 1 160px; }
+  #invite .r-btn { padding: 6px 12px; font-size: 13px; }
+  .r-overlay { position: fixed; inset: 0; z-index: 40; background: rgba(5,5,10,.7); display: flex; align-items: center; justify-content: center; padding: 16px; backdrop-filter: blur(4px); }
+  .r-modal { width: min(620px, 100%); max-height: 100%; overflow-y: auto; background: #14142a; border: 1px solid var(--border); border-radius: 18px; padding: 22px 22px 18px; font-size: 14px; }
+  .r-modal h2 { font-size: 19px; letter-spacing: -.01em; margin-bottom: 6px; }
+  .r-modal h3 { font-size: 14px; margin: 18px 0 8px; }
+  .r-modal p, .r-modal li { color: var(--muted); }
+  .r-modal ul { padding-left: 20px; margin: 6px 0 10px; }
+  .r-modal fieldset { border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px 12px; margin: 12px 0; min-width: 0; }
+  .r-modal legend { padding: 0 6px; font-weight: 700; font-size: 14px; }
+  .r-q { margin: 10px 0; }
+  .r-q > div { color: var(--text); margin-bottom: 5px; }
+  .r-scale { display: flex; gap: 6px; }
+  .r-scale label { flex: 1; text-align: center; cursor: pointer; }
+  .r-scale input { position: absolute; opacity: 0; pointer-events: none; }
+  .r-scale span { display: block; padding: 7px 0; border-radius: 9px; border: 1px solid var(--border); color: var(--muted); }
+  .r-scale input:checked + span { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .r-scale input:focus-visible + span { outline: 2px solid #fff; }
+  .r-scale-hint { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .r-opts { display: flex; flex-wrap: wrap; gap: 6px; }
+  .r-opts label { cursor: pointer; }
+  .r-opts input { position: absolute; opacity: 0; pointer-events: none; }
+  .r-opts span { display: block; padding: 7px 12px; border-radius: 9px; border: 1px solid var(--border); color: var(--muted); }
+  .r-opts input:checked + span { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .r-opts input:focus-visible + span { outline: 2px solid #fff; }
+  .r-modal textarea { width: 100%; min-height: 70px; resize: vertical; font: inherit; color: var(--text); background: rgba(255,255,255,.04); border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; }
+  .r-err { color: var(--err); margin: 8px 0 0; min-height: 1em; }
+  .r-modal .r-actions { margin-top: 14px; justify-content: flex-end; }
+
   /* ── мобільний ── */
   @media (max-width: 860px) {
     #chat { top: auto; left: 10px; right: 10px; bottom: 10px; width: auto; height: 54dvh; border-radius: 18px; }
-    #back { top: 10px; left: 10px; }
+    #topbar { top: 10px; left: 10px; }
     #back small { display: none; }
+    #custom { top: auto; left: 10px; right: 10px; bottom: 10px; width: auto; height: 54dvh; }
+    #topbar { flex-wrap: wrap; right: 10px; }
+    #mode-btn, #custom-btn { padding: 8px 10px; font-size: 13px; }
+    html.text-mode #chat { left: 10px; right: 10px; width: auto; transform: none; top: 110px; bottom: 10px; height: auto; }
+    #consent { left: 10px; right: 10px; bottom: 10px; width: auto; }
     .msg { font-size: 14px; }
     #input { font-size: 16px; } /* без авто-зуму iOS */
   }
@@ -184,7 +294,17 @@
 
 <main id="layout">
   <section id="stage-wrap" aria-label="3D avatar">
-    <a id="back" href="index.html"><b><span>Avatary</span>AI</b><small data-i18n="back">← на сайт</small></a>
+    <div id="topbar">
+      <a id="back" href="index.html"><b><span>Avatary</span>AI</b><small data-i18n="back">← на сайт</small></a>
+      <button id="custom-btn" type="button" aria-expanded="false" aria-controls="custom">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 2-.9 2-2 0-.6-.3-1.1-.6-1.5-.3-.4-.4-.9-.4-1.5 0-1.1.9-2 2-2h2.3A3.7 3.7 0 0 0 21 10.3C21 6.2 17 3 12 3z"/><circle cx="7.5" cy="11" r="1" fill="currentColor"/><circle cx="10" cy="7" r="1" fill="currentColor"/><circle cx="15" cy="7" r="1" fill="currentColor"/></svg>
+        <span data-i18n="customize">Кастомізація</span>
+      </button>
+      <button id="mode-btn" type="button" aria-pressed="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5V8z"/><path d="m3 8 9 5 9-5M12 13v8"/><path class="slash" d="M4 4l16 16"/></svg>
+        <span id="mode-label">Прибрати 3D</span>
+      </button>
+    </div>
     <div id="stage"></div>
     <div id="think-bubble" aria-hidden="true"><div class="b"><i></i><i></i><i></i></div></div>
     <div id="loader"><div class="ring"></div><span id="loader-text" data-i18n="loading">Завантажую кімнату…</span></div>
@@ -231,12 +351,27 @@
       <input id="input" type="text" maxlength="500" enterkeyhint="send" data-i18n-ph="placeholder" placeholder="Напиши щось…" aria-label="Message">
       <button id="send" type="submit" aria-label="Send"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
     </form>
-    <div id="hint"><span id="hint-text" data-i18n="hint">Безкоштовно: до 20 повідомлень на добу.</span> · <a href="privacy.html" target="_blank" rel="noopener" data-i18n="privacy">Конфіденційність</a></div>
+    <div id="hint"><span id="hint-text" data-i18n="hint">Безкоштовно: до 20 повідомлень на добу.</span> · <a href="#" id="research-link" data-i18n="research">Дослідження</a> · <a href="privacy.html" target="_blank" rel="noopener" data-i18n="privacy">Конфіденційність</a></div>
+  </aside>
+
+  <aside id="custom" aria-label="Customize" hidden>
+    <header>
+      <b data-i18n="customize">Кастомізація</b>
+      <button id="custom-close" type="button" aria-label="Close">×</button>
+    </header>
+    <div id="custom-tabs" role="tablist"></div>
+    <div id="custom-body"></div>
+    <footer>
+      <button type="button" class="lnk" id="custom-random" data-i18n="cRandom">Випадково</button>
+      <button type="button" class="lnk" id="custom-reset" data-i18n="cReset">Скинути</button>
+      <button type="button" class="lnk primary" id="custom-done" data-i18n="cDone">Готово</button>
+    </footer>
   </aside>
 </main>
 
 <script src="config.js?v=2"></script>
-<script src="assets/scene.bundle.js?v=2"></script>
-<script src="app.js?v=4"></script>
+<script src="assets/scene.bundle.js?v=4"></script>
+<script src="app.js?v=8"></script>
+<script src="research.js?v=2"></script>
 </body>
 </html>

@@ -26,6 +26,9 @@ const TXT = {
     confirmDelChat: "Видалити цей чат?", delChat: "Видалити чат",
     confirmDelete: "Видалити акаунт і всю історію назавжди? Це незворотно.",
     deleted: "Акаунт і історію видалено.",
+    customize: "Кастомізація", cRandom: "Випадково", cReset: "Скинути", cDone: "Готово",
+    gDecor: "Декор", gDesk: "На столі", gExtra: "Додатково",
+    modeOff: "Прибрати 3D", modeOn: "Повернути 3D", research: "Дослідження",
   },
   en: {
     back: "← to site", loading: "Loading the room…", placeholder: "Say something…", mute: "Voice",
@@ -48,6 +51,9 @@ const TXT = {
     confirmDelChat: "Delete this chat?", delChat: "Delete chat",
     confirmDelete: "Delete your account and all history forever? This can't be undone.",
     deleted: "Account and history deleted.",
+    customize: "Customize", cRandom: "Random", cReset: "Reset", cDone: "Done",
+    gDecor: "Decor", gDesk: "On the desk", gExtra: "Extras",
+    modeOff: "Remove 3D", modeOn: "Bring back 3D", research: "Research",
   },
 }[LANG];
 
@@ -68,6 +74,16 @@ try { userToken = localStorage.getItem("avataryai_user_token"); userName = local
 let muted = false;
 try { muted = localStorage.getItem("avataryai_muted") === "1"; } catch (e) {}
 
+// Режим: "avatar" (3D + голос) або "text" (звичайний чат). ?mode=text|avatar задає режим при вході (для рівномірного розподілу порядку в дослідженні)
+let mode = "avatar";
+try { if (localStorage.getItem("avataryai_mode") === "text") mode = "text"; } catch (e) {}
+try {
+  const mm = location.pathname.match(/man=([\w-]{1,20})/) || location.search.match(/[?&]man=([\w-]{1,20})/);
+  if (mm && /^(text|t)$/i.test(mm[1])) mode = "text";      // /man=text — почати з текстового режиму
+  if (mm && /^(avatar|a)$/i.test(mm[1])) mode = "avatar";
+} catch (e) {}
+try { const qm = new URLSearchParams(location.search).get("mode"); if (qm === "text" || qm === "avatar") mode = qm; } catch (e) {}
+
 let busy = false;
 let uiState = "connecting";
 
@@ -80,7 +96,20 @@ function setState(s) {
   if (label) label.textContent = TXT[s] || s;
   if (window.AvatarScene) window.AvatarScene.setState(s === "thinking" || s === "speaking" ? s : "idle");
 }
-document.addEventListener("avatar-ready", () => setState(uiState));
+document.addEventListener("avatar-ready", () => { setState(uiState); if (mode === "text" && window.AvatarScene) window.AvatarScene.setPaused(true); });
+
+function applyMode() {
+  const text = mode === "text";
+  document.documentElement.classList.toggle("text-mode", text);
+  if (text) {
+    stopSpeech();
+    if (document.documentElement.classList.contains("customizing")) { const d = $("custom-done"); if (d) d.click(); }
+  }
+  if (window.AvatarScene && window.AvatarScene.setPaused) window.AvatarScene.setPaused(text);
+  const b = $("mode-btn");
+  if (b) { b.setAttribute("aria-pressed", text ? "true" : "false"); $("mode-label").textContent = text ? TXT.modeOn : TXT.modeOff; }
+  try { localStorage.setItem("avataryai_mode", mode); } catch (e) {}
+}
 
 function addMessage(role, text) {
   const log = $("log");
@@ -304,6 +333,81 @@ function initAccountButtons() {
   });
 }
 
+// ── Кастомізація кімнати й персонажа ──────────────────────────
+function initCustomizer() {
+  const scene = window.AvatarScene;
+  const panel = $("custom"), btn = $("custom-btn");
+  if (!scene || !scene.catalog || !panel || !btn || btn.dataset.ready) return;
+  btn.dataset.ready = "1";
+  const lbl = (o) => (o.label && (o.label[LANG] || o.label.uk)) || "";
+  const GROUP_HEAD = { room: TXT.gDecor, furniture: TXT.gDesk, accessories: TXT.gExtra };
+  let tab = scene.catalog[0].id;
+
+  function renderTabs() {
+    const box = $("custom-tabs");
+    box.textContent = "";
+    scene.catalog.forEach((g) => {
+      const b = document.createElement("button");
+      b.type = "button"; b.setAttribute("role", "tab"); b.setAttribute("aria-selected", g.id === tab ? "true" : "false");
+      b.textContent = g.title[LANG] || g.title.uk;
+      b.addEventListener("click", () => { tab = g.id; renderTabs(); renderBody(); $("custom-body").scrollTop = 0; });
+      box.appendChild(b);
+    });
+  }
+
+  function pick(key, value) { scene.setLook({ [key]: value }); renderBody(); }
+
+  function renderBody() {
+    const body = $("custom-body"), look = scene.getLook(), g = scene.catalog.find((x) => x.id === tab);
+    const keep = body.scrollTop;
+    body.textContent = "";
+    const block = (label) => {
+      const o = document.createElement("div"); o.className = "opt";
+      const l = document.createElement("div"); l.className = "opt-label"; l.textContent = label;
+      const c = document.createElement("div"); c.className = "opt-ctl";
+      o.append(l, c); body.appendChild(o); return c;
+    };
+    let toggles = null;
+    g.items.forEach((it) => {
+      if (it.type === "toggle") {
+        if (!toggles) toggles = block(GROUP_HEAD[g.id] || TXT.gExtra);
+        const b = document.createElement("button");
+        b.type = "button"; b.className = "chip"; b.textContent = lbl(it);
+        b.setAttribute("aria-pressed", look[it.key] ? "true" : "false");
+        b.addEventListener("click", () => pick(it.key, !look[it.key]));
+        toggles.appendChild(b);
+        return;
+      }
+      const ctl = block(lbl(it));
+      it.options.forEach((o) => {
+        const b = document.createElement("button");
+        b.type = "button"; b.setAttribute("aria-pressed", look[it.key] === o.id ? "true" : "false");
+        if (o.color !== undefined) {
+          b.className = "sw" + (o.color ? "" : " none");
+          if (o.color) b.style.background = o.color;
+          b.title = lbl(o); b.setAttribute("aria-label", lbl(o));
+        } else { b.className = "chip"; b.textContent = lbl(o); }
+        b.addEventListener("click", () => pick(it.key, o.id));
+        ctl.appendChild(b);
+      });
+    });
+    body.scrollTop = keep;
+  }
+
+  function open(on) {
+    panel.hidden = !on;
+    document.documentElement.classList.toggle("customizing", on);
+    btn.setAttribute("aria-expanded", on ? "true" : "false");
+    if (on) { renderTabs(); renderBody(); }
+  }
+  btn.addEventListener("click", () => open(panel.hidden));
+  $("custom-close").addEventListener("click", () => open(false));
+  $("custom-done").addEventListener("click", () => open(false));
+  $("custom-reset").addEventListener("click", () => { scene.resetLook(); renderBody(); });
+  $("custom-random").addEventListener("click", () => { scene.randomLook(); renderBody(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !panel.hidden) open(false); });
+}
+
 // ── Озвучка + синхронізація рота ──────────────────────────────
 let audioCtx = null;
 function ensureAudio() {
@@ -318,55 +422,127 @@ function cleanForSpeech(text) {
   return text.replace(/```[\s\S]*?```/g, " ").replace(/[*_#`>~|]/g, "").replace(/\s+/g, " ").trim();
 }
 
-async function playTTS(text) {
-  const speech = cleanForSpeech(text);
-  if (muted || !speech) { setState("idle"); return; }
-  let url = null, raf = 0;
-  const finish = () => {
-    cancelAnimationFrame(raf);
-    if (window.AvatarScene) window.AvatarScene.setMouth(0);
-    if (url) URL.revokeObjectURL(url);
-    setState("idle");
+// Озвучка частинами: перший шматок короткий, щоб звук стартував швидко,
+// решта синтезується, поки грає попередня. Так довга відповідь не змушує чекати.
+const SPEECH_FIRST = 140, SPEECH_REST = 260, SPEECH_MAX_CHARS = 1800;
+
+function splitSpeech(text) {
+  const parts = [];
+  const sentences = text.match(/[^.!?…]+[.!?…]*\s*/g) || [text];
+  const pushLong = (str, max) => {   // дуже довге речення ріжемо по комах чи пробілах
+    let rest = str.trim();
+    while (rest.length > max) {
+      let cut = Math.max(rest.lastIndexOf(", ", max), rest.lastIndexOf("; ", max), rest.lastIndexOf(": ", max));
+      if (cut < max * 0.4) cut = rest.lastIndexOf(" ", max);
+      if (cut < 1) cut = max;
+      parts.push(rest.slice(0, cut + 1).trim());
+      rest = rest.slice(cut + 1).trim();
+    }
+    return rest;
   };
+  let cur = "";
+  for (const sen of sentences) {
+    const max = parts.length ? SPEECH_REST : SPEECH_FIRST;
+    if (cur && (cur + sen).length > max) { parts.push(cur.trim()); cur = ""; }
+    const lim = parts.length ? SPEECH_REST : SPEECH_FIRST;
+    cur += sen.length > lim ? pushLong(cur + sen, lim) : sen;
+    if (sen.length > lim) cur = cur.trim() ? cur : "";
+  }
+  if (cur.trim()) parts.push(cur.trim());
+  const out = []; let total = 0;
+  for (const c of parts) { if (c && total + c.length <= SPEECH_MAX_CHARS) { out.push(c); total += c.length; } else if (c && !out.length) { out.push(c.slice(0, SPEECH_MAX_CHARS)); break; } else break; }
+  return out;
+}
+
+let player = null, analyser = null, meterBuf = null, meterRaf = 0, speakId = 0, curDone = null;
+
+function ensurePlayer() {
+  if (player) return player;
+  player = new Audio();
   try {
-    const r = await authed("/tts", { text: speech });
-    if (!r.ok) throw new Error("tts " + r.status);
-    url = URL.createObjectURL(await r.blob());
-    const audio = new Audio(url);
+    const ctx = ensureAudio();
+    if (ctx) {
+      const src = ctx.createMediaElementSource(player);
+      analyser = ctx.createAnalyser();
+      analyser.fftSize = 512;
+      src.connect(analyser); analyser.connect(ctx.destination);
+      meterBuf = new Uint8Array(analyser.fftSize);
+    }
+  } catch (e) { analyser = null; }
+  return player;
+}
 
-    let analyser = null, buf = null;
-    try {
-      const ctx = ensureAudio();
-      if (ctx) {
-        const src = ctx.createMediaElementSource(audio);
-        analyser = ctx.createAnalyser();
-        analyser.fftSize = 512;
-        src.connect(analyser);
-        analyser.connect(ctx.destination);
-        buf = new Uint8Array(analyser.fftSize);
-      }
-    } catch (e) { analyser = null; }
+function meterTick() {
+  if (!analyser) return;
+  analyser.getByteTimeDomainData(meterBuf);
+  let sum = 0;
+  for (let i = 0; i < meterBuf.length; i++) { const v = (meterBuf[i] - 128) / 128; sum += v * v; }
+  const rms = Math.sqrt(sum / meterBuf.length);
+  if (window.AvatarScene) window.AvatarScene.setMouth(clamp((rms - 0.015) * 7, 0, 1));
+  meterRaf = requestAnimationFrame(meterTick);
+}
 
-    const tick = () => {
-      analyser.getByteTimeDomainData(buf);
-      let sum = 0;
-      for (let i = 0; i < buf.length; i++) { const v = (buf[i] - 128) / 128; sum += v * v; }
-      const rms = Math.sqrt(sum / buf.length);
-      if (window.AvatarScene) window.AvatarScene.setMouth(clamp((rms - 0.015) * 7, 0, 1));
-      raf = requestAnimationFrame(tick);
-    };
-    audio.onplaying = () => { setState("speaking"); if (analyser) tick(); };
-    audio.onended = finish;
-    audio.onerror = finish;
-    await audio.play();
-  } catch (e) {
-    finish();
+function stopSpeech() {   // для кнопки «без звуку»
+  speakId++;
+  if (player) { try { player.pause(); } catch (e) {} }
+  if (curDone) curDone();   // розблоковуємо цикл відтворення
+}
+
+async function fetchSpeechUrl(chunk) {
+  const r = await authed("/tts", { text: chunk });
+  if (!r.ok) throw new Error("tts " + r.status);
+  return URL.createObjectURL(await r.blob());
+}
+
+function playUrl(audio, url, myId, onStart) {
+  return new Promise((resolve) => {
+    const done = () => { audio.onplaying = audio.onended = audio.onerror = null; if (curDone === done) curDone = null; URL.revokeObjectURL(url); resolve(); };
+    curDone = done;
+    audio.onplaying = () => { if (myId !== speakId) return; onStart(); };
+    audio.onended = done;
+    audio.onerror = done;
+    audio.src = url;
+    audio.play().catch(done);
+  });
+}
+
+/** onStart викликається, коли звук справді пішов (або одразу, якщо озвучки не буде). */
+async function playTTS(text, onStart = () => {}) {
+  const speech = cleanForSpeech(text);
+  const chunks = (muted || mode === "text" || !speech) ? [] : splitSpeech(speech);
+  if (!chunks.length) { onStart(); setState("idle"); return; }
+  const myId = ++speakId;
+  let started = false;
+  const begin = () => { if (started) return; started = true; setState("speaking"); onStart(); cancelAnimationFrame(meterRaf); meterTick(); };
+  const jobs = new Array(chunks.length);
+  let next = 0;
+  const kick = () => {            // не більше двох запитів одночасно
+    if (next >= chunks.length) return;
+    const i = next++;
+    jobs[i] = fetchSpeechUrl(chunks[i]);
+    jobs[i].then(kick, kick);
+  };
+  kick(); kick();
+  try {
+    const audio = ensurePlayer();
+    for (let i = 0; i < chunks.length; i++) {
+      const url = await jobs[i];
+      if (myId !== speakId) { URL.revokeObjectURL(url); break; }
+      await playUrl(audio, url, myId, begin);
+    }
+  } catch (e) { /* озвучка не вдалась: текст усе одно буде показано */ }
+  finally {
+    cancelAnimationFrame(meterRaf);
+    if (window.AvatarScene) window.AvatarScene.setMouth(0);
+    jobs.forEach((j) => j && j.then((u) => { try { URL.revokeObjectURL(u); } catch (e) {} }, () => {}));
+    setState("idle");
   }
 }
 
 // ── Чат ───────────────────────────────────────────────────────
 async function sendMessage(text) {
   setState("thinking");
+  const t0 = performance.now(), sentMode = mode, sentVoice = mode === "avatar" && !muted;
   try {
     const asUser = !!userToken;
     const r = asUser
@@ -379,6 +555,7 @@ async function sendMessage(text) {
     if (!r.ok) throw new Error("chat " + r.status);
     const data = await r.json();
     const reply = data.reply || "…";
+    const tReply = Math.round(performance.now() - t0);
     if (asUser && r.ok && data.chat_id) {
       const isNew = currentChatId !== data.chat_id;
       currentChatId = data.chat_id; rememberChat();
@@ -388,8 +565,12 @@ async function sendMessage(text) {
       userLimit = data.limit;
       setHint(TXT.hintUser.replace("{used}", data.used).replace("{limit}", data.limit));
     }
-    addMessage("ai", reply.replace(/\*\*(.*?)\*\*/g, "$1"));
-    await playTTS(reply);          // лишаємось у «думає» до початку звуку
+    // Текст і звук стартують разом: поки готується перший шматок озвучки, аватар «думає», а відповідь ще не показана
+    let shown = false, tShown = 0;
+    const show = () => { if (!shown) { shown = true; tShown = Math.round(performance.now() - t0); addMessage("ai", reply.replace(/\*\*(.*?)\*\*/g, "$1")); } };
+    await playTTS(reply, show);
+    show();                        // на випадок помилки озвучки
+    if (window.Research) window.Research.onMessage({ mode: sentMode, voice: sentVoice, t_reply: tReply, t_shown: tShown, chars: reply.length });
   } catch (e) {
     addMessage("err", TXT.neterr);
     setState("offline");
@@ -423,17 +604,27 @@ function init() {
   renderAccount();
   initAccountButtons();
   initGoogle();
+  if (window.AvatarScene) initCustomizer(); else document.addEventListener("avatar-ready", initCustomizer);
   loadAccount();
 
   const mute = $("mute");
   mute.setAttribute("aria-pressed", muted ? "true" : "false");
   mute.addEventListener("click", () => {
     muted = !muted;
+    if (muted) stopSpeech();
     mute.setAttribute("aria-pressed", muted ? "true" : "false");
     try { localStorage.setItem("avataryai_muted", muted ? "1" : "0"); } catch (e) {}
   });
 
   $("form").addEventListener("submit", submit);
+
+  applyMode();
+  $("mode-btn").addEventListener("click", () => {
+    mode = mode === "text" ? "avatar" : "text";
+    applyMode();
+    if (window.Research) window.Research.onModeChange(mode);
+  });
+  if (window.Research) window.Research.init({ getMode: () => mode });
 
   if (document.documentElement.classList.contains("scene-failed")) $("loader-text").textContent = TXT.nowebgl;
   new MutationObserver(() => {
