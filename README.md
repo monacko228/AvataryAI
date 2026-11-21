@@ -23,7 +23,7 @@ An innovative, privacy-focused browser AI assistant featuring a live interactive
 
 * **Frontend / UI:** HTML5, CSS3, JavaScript, Three.js, Three.js-based 3D rendering
 * **Backend:** Python, FastAPI
-* **Deployment & Hosting:** Netlify, GitHub
+* **Deployment & Hosting:** GitHub
 
 ---
 
