@@ -26,6 +26,7 @@
     iStatus: ["Зараз: участь увімкнена.", "Зараз: участь вимкнена."],
     iOn: "Взяти участь", iOff: "Вимкнути участь", iForget: "Видалити мої дані", iSurvey: "Пройти анкету", iClose: "Закрити",
     iForgot: "Дані видалено. Участь вимкнено.", iSurveyDone: "Дякуємо, анкету вже заповнено.",
+    nudge: "Щоб порівняти, спробуй тепер інший режим кнопкою вгорі (з 3D або без). Після цього з'явиться коротка анкета.", nudgeOk: "Зрозуміло",
     invite: "Ти спробував(-ла) обидва режими. Допоможи дослідженню: анкета займе близько хвилини.", invBtn: "Відкрити анкету", invLater: "Пізніше",
     sTitle: "Анкета", sIntro: "Оціни, наскільки ти згоден(-на) з твердженнями окремо для кожного режиму: 1 — зовсім ні, 5 — повністю так.",
     sAv: "З аватаром (3D + голос)", sTx: "Тільки текст",
@@ -49,6 +50,7 @@
     iStatus: ["Status: participating.", "Status: not participating."],
     iOn: "Participate", iOff: "Stop participating", iForget: "Delete my data", iSurvey: "Take the survey", iClose: "Close",
     iForgot: "Data deleted. Participation turned off.", iSurveyDone: "Thanks, the survey is already filled in.",
+    nudge: "To compare, now try the other mode with the button at the top (with or without 3D). A short survey will appear afterwards.", nudgeOk: "Got it",
     invite: "You've tried both modes. Please help the research: the survey takes about a minute.", invBtn: "Open survey", invLater: "Later",
     sTitle: "Survey", sIntro: "Rate how much you agree with each statement separately for each mode: 1 = not at all, 5 = completely.",
     sAv: "With avatar (3D + voice)", sTx: "Text only",
@@ -132,15 +134,25 @@
   }
   async function forget() {
     if (get(K.pid)) await post("/r/forget", { pid: get(K.pid) });
-    [K.pid, K.count, K.first, K.done].forEach(del); set(K.consent, "no");
+    [K.pid, K.count, K.first, K.done, "avataryai_rnudged"].forEach(del); set(K.consent, "no");
     const o = $("r-overlay"); if (o) { overlay([el("h2", {}, T.iTitle), el("p", {}, T.iForgot), el("div", { class: "r-actions" }, el("button", { class: "r-btn primary", type: "button", onclick: closeOverlay }, T.iClose))]); }
   }
 
   // ── запрошення до анкети ──
+  let nudged = false;
   function maybeInvite() {
-    if (invited || !joined() || get(K.done) || $("invite")) return;
-    const c = counts(); if (c.avatar < 2 || c.text < 2) return;
+    if (!joined() || get(K.done)) return;
+    const c = counts(), total = c.avatar + c.text;
+    if (total < 2) return;
+    if (c.avatar < 1 || c.text < 1) {      // обидва режими потрібні для порівняння
+      if (nudged || get("avataryai_rnudged")) return;
+      nudged = true; set("avataryai_rnudged", "1");
+      const n = el("div", { id: "invite" }, el("span", {}, T.nudge), el("button", { class: "r-btn", type: "button", onclick: () => n.remove() }, T.nudgeOk));
+      $("form").before(n); return;
+    }
+    if (invited) return;
     invited = true;
+    const old = $("invite"); if (old) old.remove();
     const bar = el("div", { id: "invite" }, el("span", {}, T.invite),
       el("button", { class: "r-btn primary", type: "button", onclick: () => { bar.remove(); showSurvey(); } }, T.invBtn),
       el("button", { class: "r-btn", type: "button", onclick: () => bar.remove() }, T.invLater));
