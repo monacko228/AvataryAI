@@ -73,10 +73,38 @@ function drawPainting(ctx, w, h) {
   ridge(h * 0.68, 26, '#5a3fb8', 1); ridge(h * 0.78, 22, '#3a2a86', 3); ridge(h * 0.88, 16, '#1d1550', 5);
 }
 
-function drawWall(hex) {
+function drawWall(hex, kind = 'stripes') {
   return (ctx, w, h) => {
-    ctx.fillStyle = hex; ctx.fillRect(0, 0, w, h);
-    for (let x = 0; x < w; x += 64) { ctx.fillStyle = 'rgba(255,255,255,.055)'; ctx.fillRect(x, 0, 32, h); }
+    if (kind === 'bricks') {
+      ctx.fillStyle = '#d9cbbb'; ctx.fillRect(0, 0, w, h);
+      const bh = 32, bw = 64;
+      for (let r = 0; r < h / bh; r++) {
+        for (let x = -bw; x < w + bw; x += bw) {
+          const ox = (r % 2) * (bw / 2);
+          ctx.fillStyle = hex; ctx.fillRect(x + ox + 2, r * bh + 2, bw - 4, bh - 4);
+          const sh = (rnd() - 0.5) * 0.22;
+          ctx.fillStyle = sh > 0 ? `rgba(255,235,220,${sh})` : `rgba(40,10,0,${-sh})`;
+          ctx.fillRect(x + ox + 2, r * bh + 2, bw - 4, bh - 4);
+        }
+      }
+    } else {
+      ctx.fillStyle = hex; ctx.fillRect(0, 0, w, h);
+    }
+    if (kind === 'stripes') {
+      for (let x = 0; x < w; x += 64) { ctx.fillStyle = 'rgba(255,255,255,.055)'; ctx.fillRect(x, 0, 32, h); }
+    } else if (kind === 'dots') {
+      ctx.fillStyle = 'rgba(255,255,255,.3)';
+      for (let y = 0; y < h; y += 64) for (let x = 0; x < w; x += 64) {
+        ctx.beginPath(); ctx.arc(x + ((y / 64) % 2) * 32 + 16, y + 16, 7, 0, 7); ctx.fill();
+      }
+    } else if (kind === 'stars') {
+      for (let i = 0; i < 46; i++) {
+        const x = rnd() * w, y = rnd() * h, big = rnd() > 0.82;
+        ctx.fillStyle = `rgba(255,248,220,${0.35 + rnd() * 0.55})`;
+        ctx.fillRect(x, y, big ? 4 : 2, big ? 4 : 2);
+        if (big) { ctx.fillRect(x - 2, y + 1, 8, 2); ctx.fillRect(x + 1, y - 2, 2, 8); }
+      }
+    }
     for (let i = 0; i < 900; i++) {
       ctx.fillStyle = rnd() > 0.5 ? 'rgba(255,255,255,.04)' : 'rgba(0,0,40,.04)';
       ctx.fillRect(rnd() * w, rnd() * h, 2, 2);
@@ -84,9 +112,22 @@ function drawWall(hex) {
   };
 }
 
-function drawFloor(hex) {
+function drawFloor(hex, kind = 'planks') {
   return (ctx, w, h) => {
     ctx.fillStyle = hex; ctx.fillRect(0, 0, w, h);
+    if (kind === 'tiles') {
+      const n = 4, tw = w / n;
+      for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+        ctx.fillStyle = (i + j) % 2 ? 'rgba(255,255,255,.1)' : 'rgba(0,0,30,.07)';
+        ctx.fillRect(i * tw, j * tw, tw, tw);
+        const g = ctx.createLinearGradient(i * tw, j * tw, i * tw + tw, j * tw + tw);
+        g.addColorStop(0, 'rgba(255,255,255,.12)'); g.addColorStop(0.5, 'rgba(255,255,255,0)');
+        ctx.fillStyle = g; ctx.fillRect(i * tw, j * tw, tw, tw);
+      }
+      ctx.fillStyle = 'rgba(30,30,50,.4)';
+      for (let i = 0; i < n; i++) { ctx.fillRect(i * tw, 0, 3, h); ctx.fillRect(0, i * tw, w, 3); }
+      return;
+    }
     const n = 8, pw = w / n;
     for (let i = 0; i < n; i++) {
       const shade = (rnd() - 0.5) * 0.16;
@@ -103,24 +144,63 @@ function drawFloor(hex) {
   };
 }
 
-function drawRug(ctx, w, h) {
-  const m = 18, r = 26;
-  ctx.fillStyle = '#efe4d2';
-  for (let y = 10; y < h - 10; y += 9) { ctx.fillRect(2, y, m, 3); ctx.fillRect(w - m - 2, y, m, 3); }
-  const rr = (x, y, ww, hh, rad) => {
-    ctx.beginPath(); ctx.moveTo(x + rad, y); ctx.arcTo(x + ww, y, x + ww, y + hh, rad); ctx.arcTo(x + ww, y + hh, x, y + hh, rad);
-    ctx.arcTo(x, y + hh, x, y, rad); ctx.arcTo(x, y, x + ww, y, rad); ctx.closePath();
+function drawRug(cols) {
+  const [edge, mid, inner] = cols;
+  return (ctx, w, h) => {
+    const m = 18, r = 26;
+    ctx.fillStyle = edge;
+    for (let y = 10; y < h - 10; y += 9) { ctx.fillRect(2, y, m, 3); ctx.fillRect(w - m - 2, y, m, 3); }
+    const rr = (x, y, ww, hh, rad) => {
+      ctx.beginPath(); ctx.moveTo(x + rad, y); ctx.arcTo(x + ww, y, x + ww, y + hh, rad); ctx.arcTo(x + ww, y + hh, x, y + hh, rad);
+      ctx.arcTo(x, y + hh, x, y, rad); ctx.arcTo(x, y, x + ww, y, rad); ctx.closePath();
+    };
+    rr(m, 0, w - 2 * m, h, r); ctx.fillStyle = edge; ctx.fill();
+    rr(m + 14, 14, w - 2 * m - 28, h - 28, r - 8); ctx.fillStyle = mid; ctx.fill();
+    rr(m + 28, 28, w - 2 * m - 56, h - 56, r - 14); ctx.fillStyle = inner; ctx.fill();
+    ctx.save(); rr(m + 28, 28, w - 2 * m - 56, h - 56, r - 14); ctx.clip();
+    ctx.strokeStyle = 'rgba(255,255,255,.14)'; ctx.lineWidth = 3;
+    for (let i = -h; i < w + h; i += 46) {
+      ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i + h, h); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(i, h); ctx.lineTo(i + h, 0); ctx.stroke();
+    }
+    ctx.restore();
   };
-  rr(m, 0, w - 2 * m, h, r); ctx.fillStyle = '#efe4d2'; ctx.fill();
-  rr(m + 14, 14, w - 2 * m - 28, h - 28, r - 8); ctx.fillStyle = '#4b3aa6'; ctx.fill();
-  rr(m + 28, 28, w - 2 * m - 56, h - 56, r - 14); ctx.fillStyle = '#6a52e0'; ctx.fill();
-  ctx.save(); rr(m + 28, 28, w - 2 * m - 56, h - 56, r - 14); ctx.clip();
-  ctx.strokeStyle = 'rgba(255,255,255,.14)'; ctx.lineWidth = 3;
-  for (let i = -h; i < w + h; i += 46) {
-    ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i + h, h); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(i, h); ctx.lineTo(i + h, 0); ctx.stroke();
+}
+
+// Картини: без rnd(), щоб не зсувати послідовність випадкових чисел сцени
+const hash = (i) => (Math.sin(i * 91.3) * 0.5 + 0.5);
+function drawPaintingSpace(ctx, w, h) {
+  const sky = ctx.createLinearGradient(0, 0, w, h);
+  sky.addColorStop(0, '#07061f'); sky.addColorStop(0.55, '#1c1352'); sky.addColorStop(1, '#4a2a86');
+  ctx.fillStyle = sky; ctx.fillRect(0, 0, w, h);
+  const neb = ctx.createRadialGradient(w * 0.25, h * 0.3, 4, w * 0.25, h * 0.3, h * 0.5);
+  neb.addColorStop(0, 'rgba(255,120,200,.35)'); neb.addColorStop(1, 'rgba(255,120,200,0)');
+  ctx.fillStyle = neb; ctx.fillRect(0, 0, w, h);
+  for (let i = 0; i < 130; i++) {
+    ctx.fillStyle = `rgba(255,255,255,${0.35 + hash(i * 3) * 0.6})`;
+    ctx.fillRect(hash(i) * w, hash(i + 77) * h, hash(i * 5) > 0.85 ? 3 : 2, hash(i * 5) > 0.85 ? 3 : 2);
   }
-  ctx.restore();
+  const px = w * 0.66, py = h * 0.56, pr = h * 0.27;
+  const pl = ctx.createRadialGradient(px - pr * 0.4, py - pr * 0.4, pr * 0.1, px, py, pr);
+  pl.addColorStop(0, '#ffd9a0'); pl.addColorStop(0.55, '#ff8f5a'); pl.addColorStop(1, '#8a2f6a');
+  ctx.fillStyle = pl; ctx.beginPath(); ctx.arc(px, py, pr, 0, 7); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,230,200,.8)'; ctx.lineWidth = 7;
+  ctx.beginPath(); ctx.ellipse(px, py, pr * 1.75, pr * 0.32, -0.35, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,230,200,.55)'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.ellipse(px, py, pr * 1.95, pr * 0.38, -0.35, 1.15 * Math.PI, 1.85 * Math.PI); ctx.stroke();
+  ctx.fillStyle = '#d8d2ee'; ctx.beginPath(); ctx.arc(w * 0.18, h * 0.72, h * 0.07, 0, 7); ctx.fill();
+}
+function drawPaintingWaves(ctx, w, h) {
+  const sky = ctx.createLinearGradient(0, 0, 0, h);
+  sky.addColorStop(0, '#9fdcea'); sky.addColorStop(0.6, '#fff0cf'); sky.addColorStop(1, '#ffd9b0');
+  ctx.fillStyle = sky; ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = '#fff6dc'; ctx.beginPath(); ctx.arc(w * 0.3, h * 0.38, h * 0.12, 0, 7); ctx.fill();
+  const wave = (base, amp, color, s) => {
+    ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(0, h);
+    for (let x = 0; x <= w; x += 6) ctx.lineTo(x, base + Math.sin(x * 0.02 + s) * amp + Math.sin(x * 0.055 + s * 2) * amp * 0.4);
+    ctx.lineTo(w, h); ctx.closePath(); ctx.fill();
+  };
+  wave(h * 0.62, 12, '#58b6c4', 0.5); wave(h * 0.72, 16, '#2f93aa', 2); wave(h * 0.82, 20, '#1d6f8c', 4); wave(h * 0.92, 14, '#124f6b', 6);
 }
 
 function drawClockFace(ctx, w, h) {
@@ -135,9 +215,104 @@ function drawClockFace(ctx, w, h) {
   }
 }
 
+// ── Кастомізація: каталог варіантів ───────────────────────────────
+const L = (uk, en) => ({ uk, en });
+const NAMES = {
+  purple: ['Фіолетовий', 'Purple'], red: ['Червоний', 'Red'], blue: ['Синій', 'Blue'], green: ['Зелений', 'Green'],
+  yellow: ['Жовтий', 'Yellow'], pink: ['Рожевий', 'Pink'], black: ['Чорний', 'Black'], white: ['Білий', 'White'],
+  gray: ['Сірий', 'Gray'], navy: ['Темно-синій', 'Navy'], khaki: ['Хакі', 'Khaki'], denim: ['Джинсовий', 'Denim'],
+  wood: ['Дерево', 'Wood'], dark: ['Темний', 'Dark'], brown: ['Коричневий', 'Brown'], blonde: ['Блонд', 'Blonde'],
+  fair: ['Світла', 'Fair'], light: ['Дуже світла', 'Light'], tan: ['Засмагла', 'Tan'],
+  sky: ['Небо', 'Sky'], mint: ["М'ята", 'Mint'], peach: ['Персик', 'Peach'], lavender: ['Лаванда', 'Lavender'],
+  night: ['Ніч', 'Night'], brick: ['Цегла', 'Brick'], cream: ['Крем', 'Cream'],
+  oak: ['Дуб', 'Oak'], birch: ['Береза', 'Birch'], tile: ['Плитка', 'Tile'],
+  violet: ['Фіолетовий', 'Violet'], coral: ['Корал', 'Coral'], sand: ['Пісок', 'Sand'],
+};
+const nm = (id) => L(...NAMES[id]);
+
+const WALLS = {
+  sky: { hex: null, kind: 'stripes', prev: '#83b5c9' }, mint: { hex: '#8fcfb6', kind: 'stripes' },
+  peach: { hex: '#f0b8a4', kind: 'dots' }, lavender: { hex: '#b9a9ec', kind: 'plain' },
+  night: { hex: '#2d2b52', kind: 'stars' }, brick: { hex: '#b4624a', kind: 'bricks' }, cream: { hex: '#efe3cc', kind: 'plain' },
+};
+const FLOORS = {
+  oak: { hex: null, kind: 'planks', prev: '#d1a55e' }, dark: { hex: '#7a4b2a', kind: 'planks' },
+  birch: { hex: '#e8d6ad', kind: 'planks' }, tile: { hex: '#aab2c4', kind: 'tiles' },
+};
+const RUGS = {
+  violet: ['#efe4d2', '#4b3aa6', '#6a52e0'], mint: ['#f1ead8', '#1f7f6a', '#35b394'],
+  coral: ['#f1ead8', '#b8433f', '#e8645f'], sand: ['#f6efe2', '#a8895a', '#d9b98a'],
+};
+const DESKS = { wood: '#844d16', dark: '#3b2a22', white: '#e9e6e0', black: '#23222b', blue: '#3c6fb5' };
+const CHAIRS = { wood: '#844d16', purple: '#7b61ff', black: '#2a2933', red: '#d9534f', green: '#3fa37a' };
+const TOPS = { purple: '#7b61ff', red: '#e04f5f', blue: '#3d7bf0', green: '#2fa36b', yellow: '#f2b84b', pink: '#ff8fb8', black: '#2b2b35', white: '#eeeaf5' };
+const PANTS = { navy: '#3d4478', black: '#25252d', gray: '#6b6f80', khaki: '#a79a73', denim: '#3f6db0' };
+const SKINS = { fair: '#f1dcc8', light: '#f8e6d6', tan: '#d9a982', brown: '#a8714b', dark: '#6e4630' };
+const HAIRS = { dark: '#2a2233', black: '#121016', brown: '#5a3a26', blonde: '#d9b45c', red: '#b9482a', pink: '#ff7eb6', blue: '#4a6df0', white: '#e9e6f0' };
+const SHOES = { white: '#f4f1ec', black: '#26252e', red: '#d9534f', purple: '#7b61ff' };
+const ACCENTS = { purple: '#7b61ff', red: '#e04f5f', blue: '#3d7bf0', green: '#2fa36b', yellow: '#f2b84b', pink: '#ff8fb8' };
+
+const swatches = (map, prev = (v) => v) => Object.entries(map).map(([id, v]) => ({ id, label: nm(id), color: v.prev || prev(v) }));
+const chips = (list) => list.map(([id, uk, en]) => ({ id, label: L(uk, en) }));
+const toggle = (key, uk, en) => ({ key, type: 'toggle', label: L(uk, en) });
+const choice = (key, uk, en, options) => ({ key, type: 'choice', label: L(uk, en), options });
+
+export const CATALOG = [
+  { id: 'room', title: L('Кімната', 'Room'), items: [
+    choice('wall', 'Шпалери', 'Wallpaper', swatches(WALLS, (w) => w.hex)),
+    choice('floor', 'Підлога', 'Floor', swatches(FLOORS, (f) => f.hex)),
+    choice('rug', 'Килим', 'Rug', [...swatches(RUGS, (r) => r[2]), { id: 'none', label: L('Без килима', 'No rug'), color: null }]),
+    choice('painting', 'Картина', 'Painting', chips([['sunset', 'Захід', 'Sunset'], ['space', 'Космос', 'Space'], ['waves', 'Хвилі', 'Waves'], ['none', 'Немає', 'None']])),
+    toggle('clock', 'Годинник', 'Clock'), toggle('shelf', 'Полиця з книжками', 'Bookshelf'),
+    toggle('plant', 'Рослина на підлозі', 'Floor plant'), toggle('garland', 'Гірлянда', 'String lights'),
+  ] },
+  { id: 'furniture', title: L('Меблі', 'Furniture'), items: [
+    choice('desk', 'Стіл', 'Desk', swatches(DESKS)),
+    choice('chair', 'Стілець', 'Chair', swatches(CHAIRS)),
+    toggle('lamp', 'Лампа', 'Lamp'), toggle('mug', 'Кружка', 'Mug'), toggle('cactus', 'Кактус', 'Cactus'),
+    toggle('books', 'Стопка книжок', 'Book stack'), toggle('duck', 'Гумова качка', 'Rubber duck'), toggle('photo', 'Фоторамка', 'Photo frame'),
+  ] },
+  { id: 'character', title: L('Персонаж', 'Character'), items: [
+    choice('outfit', 'Одяг', 'Outfit', chips([['hoodie', 'Худі', 'Hoodie'], ['tee', 'Футболка', 'T-shirt']])),
+    choice('top', 'Колір верху', 'Top color', swatches(TOPS)),
+    choice('pants', 'Штани', 'Pants', swatches(PANTS)),
+    choice('shoes', 'Кросівки', 'Sneakers', swatches(SHOES)),
+    choice('skin', 'Колір шкіри', 'Skin', swatches(SKINS)),
+    choice('hairStyle', 'Зачіска', 'Hairstyle', chips([['fringe', 'Чубчик', 'Fringe'], ['short', 'Коротка', 'Short'], ['long', 'Довга', 'Long'], ['bun', 'Пучок', 'Bun'], ['bald', 'Без волосся', 'Bald']])),
+    choice('hairColor', 'Колір волосся', 'Hair color', swatches(HAIRS)),
+  ] },
+  { id: 'accessories', title: L('Аксесуари', 'Accessories'), items: [
+    choice('headwear', 'Головний убір', 'Headwear', chips([['none', 'Без', 'None'], ['cap', 'Кепка', 'Cap'], ['beanie', 'Шапка', 'Beanie']])),
+    choice('glasses', 'Окуляри', 'Glasses', chips([['none', 'Без', 'None'], ['round', 'Круглі', 'Round'], ['sun', 'Сонцезахисні', 'Sunglasses']])),
+    toggle('headphones', 'Навушники з мікрофоном', 'Headphones with mic'), toggle('scarf', 'Шарф', 'Scarf'),
+    choice('accent', 'Колір аксесуарів', 'Accessory color', swatches(ACCENTS)),
+  ] },
+];
+
+export const DEFAULT_LOOK = {
+  wall: 'sky', floor: 'oak', rug: 'violet', painting: 'sunset', clock: true, shelf: true, plant: true, garland: false,
+  desk: 'wood', chair: 'wood', lamp: true, mug: true, cactus: true, books: false, duck: false, photo: false,
+  outfit: 'hoodie', top: 'purple', pants: 'navy', shoes: 'white', skin: 'fair', hairStyle: 'fringe', hairColor: 'dark',
+  headwear: 'none', glasses: 'none', headphones: true, scarf: false, accent: 'purple',
+};
+const ITEMS = Object.fromEntries(CATALOG.flatMap((g) => g.items).map((it) => [it.key, it]));
+function validValue(key, v) {
+  const it = ITEMS[key];
+  if (!it) return false;
+  return it.type === 'toggle' ? typeof v === 'boolean' : it.options.some((o) => o.id === v);
+}
+function sanitizeLook(raw) {
+  const out = { ...DEFAULT_LOOK };
+  if (raw && typeof raw === 'object') for (const k of Object.keys(DEFAULT_LOOK)) if (validValue(k, raw[k])) out[k] = raw[k];
+  return out;
+}
+const LOOK_KEY = 'avataryai_look';
+function loadLook() { try { return sanitizeLook(JSON.parse(localStorage.getItem(LOOK_KEY) || 'null')); } catch (e) { return { ...DEFAULT_LOOK }; } }
+function saveLook(look) { try { localStorage.setItem(LOOK_KEY, JSON.stringify(look)); } catch (e) { /* приватний режим */ } }
+
 export async function createAvatarScene(container, opts = {}) {
   const bubbleEl = opts.bubble || null;
-  const avoidEl = opts.avoid || null;   // панель чату: сцену центруємо у вільній зоні
+  const avoidEls = [].concat(opts.avoid || []).filter(Boolean);   // панелі (чат, кастомізація): сцену центруємо у вільній зоні
   const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   // ── Рендерер ──
@@ -170,13 +345,14 @@ export async function createAvatarScene(container, opts = {}) {
   const gltf = await new GLTFLoader().loadAsync(MODEL_URL);
   gltf.scene.updateMatrixWorld(true);
   const room = new THREE.Group();
-  const colorOf = {};
+  const colorOf = {}, byId = {};
   const SHELL = new Set(['Cube001', 'Cube002', 'Cube003', 'Cube008', 'Cube009', 'Cube017', 'Cube018', 'Cube005']);
   for (const child of [...gltf.scene.children]) {
     const box = new THREE.Box3().setFromObject(child);
     const cx = (box.min.x + box.max.x) / 2;
     const id = child.name.replace(/\W/g, '');
     if (cx < -60) continue;                    // друга копія кімнати (поза «думає») — не потрібна
+    byId[id] = child;
     if (child.material && child.material.color) colorOf[id] = '#' + child.material.color.getHexString();
     if (SHELL.has(id)) continue;
     room.add(child);
@@ -227,7 +403,7 @@ export async function createAvatarScene(container, opts = {}) {
   }
 
   // Килим під столом
-  const rugTex = canvasTex(512, 384, drawRug);
+  const rugTex = canvasTex(512, 384, drawRug(RUGS.violet));
   const rug = new THREE.Mesh(new THREE.PlaneGeometry(23, 17.2), new THREE.MeshStandardMaterial({
     map: rugTex, roughness: 1, transparent: true, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
   }));
@@ -235,7 +411,8 @@ export async function createAvatarScene(container, opts = {}) {
 
   // Картина на задній стіні
   const pc = document.createElement('canvas'); pc.width = 840; pc.height = 540;
-  drawPainting(pc.getContext('2d'), pc.width, pc.height);
+  const PAINTINGS = { sunset: drawPainting, space: drawPaintingSpace, waves: drawPaintingWaves };
+  PAINTINGS.sunset(pc.getContext('2d'), pc.width, pc.height);
   const paintTex = new THREE.CanvasTexture(pc); paintTex.colorSpace = THREE.SRGBColorSpace; paintTex.anisotropy = 8;
   const painting = new THREE.Group();
   const frameBox = new THREE.Mesh(new THREE.BoxGeometry(15.4, 10.4, 0.6), new THREE.MeshStandardMaterial({ color: 0x2a1d14, roughness: 0.6 }));
@@ -255,22 +432,23 @@ export async function createAvatarScene(container, opts = {}) {
 
   // Полиця з книжками (ліворуч від картини для глядача = +x)
   const shelfY = 13.6, shelfZ = Z_BACK - 0.85, shelfX = 11.8;
-  box(9.4, 0.4, 1.7, 0x8a5a33, shelfX, shelfY, shelfZ);
-  box(0.35, 1.0, 1.2, 0x5b3a1f, shelfX - 3.6, shelfY - 0.7, Z_BACK - 0.6);
-  box(0.35, 1.0, 1.2, 0x5b3a1f, shelfX + 3.6, shelfY - 0.7, Z_BACK - 0.6);
+  const shelfG = new THREE.Group(); scene.add(shelfG);
+  box(9.4, 0.4, 1.7, 0x8a5a33, shelfX, shelfY, shelfZ, shelfG);
+  box(0.35, 1.0, 1.2, 0x5b3a1f, shelfX - 3.6, shelfY - 0.7, Z_BACK - 0.6, shelfG);
+  box(0.35, 1.0, 1.2, 0x5b3a1f, shelfX + 3.6, shelfY - 0.7, Z_BACK - 0.6, shelfG);
   const bookCols = [0x7b61ff, 0xff9ec4, 0xf1e7d6, 0x3fb6a8, 0xffb454, 0x5a44cc, 0xe86a6a];
   let bx = shelfX - 4.1;
   for (let i = 0; i < 9; i++) {
     const w = 0.5 + rnd() * 0.45, h = 2.1 + rnd() * 1.3;
-    const b = box(w, h, 1.25, bookCols[i % bookCols.length], bx + w / 2, shelfY + 0.2 + h / 2, shelfZ);
+    const b = box(w, h, 1.25, bookCols[i % bookCols.length], bx + w / 2, shelfY + 0.2 + h / 2, shelfZ, shelfG);
     if (i === 8) { b.rotation.z = -0.28; b.position.x += 0.35; }
     bx += w + 0.04;
     if (bx > shelfX + 0.6) break;
   }
   const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.48, 0.8, 16), new THREE.MeshStandardMaterial({ color: 0xc8714a, roughness: 0.9 }));
-  pot.position.set(shelfX + 3.2, shelfY + 0.6, shelfZ); pot.castShadow = true; scene.add(pot);
+  pot.position.set(shelfX + 3.2, shelfY + 0.6, shelfZ); pot.castShadow = true; shelfG.add(pot);
   const succ = new THREE.Mesh(new THREE.SphereGeometry(0.7, 14, 10), new THREE.MeshStandardMaterial({ color: 0x3f9b58, roughness: 0.8 }));
-  succ.position.set(shelfX + 3.2, shelfY + 1.35, shelfZ); succ.scale.y = 0.85; succ.castShadow = true; scene.add(succ);
+  succ.position.set(shelfX + 3.2, shelfY + 1.35, shelfZ); succ.scale.y = 0.85; succ.castShadow = true; shelfG.add(succ);
 
   // Годинник, який показує справжній час (праворуч від картини для глядача = −x)
   const clock = new THREE.Group();
@@ -392,13 +570,34 @@ export async function createAvatarScene(container, opts = {}) {
     shoe.position.set(0, 0.34 - sh.pA.y, -0.6);
     sh.mesh.add(shoe);
   }
-  // Худі: шнурки й комір
-  const torso = P.torso, tTop = torso.dims[1] / 2, tFront = -torso.dims[2] / 2;
-  box(2.35, 0.5, 2.3, PALETTE.hoodie2, 0, tTop - 0.05, 0, torso.mesh);
-  box(0.11, 1.15, 0.07, 0xf4f1ec, 0.42, tTop - 0.95, tFront - 0.03, torso.mesh);
-  box(0.11, 1.15, 0.07, 0xf4f1ec, -0.42, tTop - 0.95, tFront - 0.03, torso.mesh);
+  // Спільна функція: коробка з готовим матеріалом (щоб колір можна було міняти на льоту)
+  const bm = (w, h, d, mat, x, y, z, parent) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+    m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; parent.add(m); return m;
+  };
+  const stringM = new THREE.MeshStandardMaterial({ color: 0xf4f1ec, roughness: 0.8 });
 
-  // Голова: обличчя, волосся, навушники
+  // Одяг: худі (комір + шнурки) або футболка
+  const torso = P.torso, tTop = torso.dims[1] / 2, tFront = -torso.dims[2] / 2;
+  const hoodG = new THREE.Group(); torso.mesh.add(hoodG);
+  bm(2.35, 0.5, 2.3, mats.hoodie2, 0, tTop - 0.05, 0, hoodG);
+  bm(0.11, 1.15, 0.07, stringM, 0.42, tTop - 0.95, tFront - 0.03, hoodG);
+  bm(0.11, 1.15, 0.07, stringM, -0.42, tTop - 0.95, tFront - 0.03, hoodG);
+  const teeCollar = bm(2.3, 0.2, 2.25, mats.hoodie2, 0, tTop - 0.02, 0, torso.mesh);
+
+  // Колір аксесуарів (шапка, кепка, шарф, кільця навушників)
+  const accentM = new THREE.MeshStandardMaterial({ color: ACCENTS.purple, roughness: 0.7 });
+  const accentD = new THREE.MeshStandardMaterial({ color: ACCENTS.purple, roughness: 0.7 });
+  const accentL = new THREE.MeshStandardMaterial({ color: ACCENTS.purple, roughness: 0.8 });
+
+  // Шарф
+  const scarfG = new THREE.Group(); torso.mesh.add(scarfG);
+  bm(3.25, 0.7, 2.6, accentM, 0, tTop - 0.12, 0, scarfG);
+  const tail = bm(0.75, 2.3, 0.26, accentM, 0.75, tTop - 1.45, tFront - 0.2, scarfG);
+  bm(0.75, 0.3, 0.28, accentL, 0.75, tTop - 2.45, tFront - 0.2, scarfG);
+  tail.rotation.z = 0.05;
+
+  // Голова: обличчя
   const head = P.head, hx = head.dims[0] / 2, hy = head.dims[1] / 2, hz = head.dims[2] / 2;
   const faceMat = new THREE.MeshBasicMaterial({ color: PALETTE.face });
   const eyeGeo = new THREE.BoxGeometry(0.3, 0.52, 0.06);
@@ -418,20 +617,58 @@ export async function createAvatarScene(container, opts = {}) {
   nose.position.set(0, -0.14, -hz - 0.1);
   head.mesh.add(eyeL, eyeR, mouth, browL, browR, blushL, blushR, nose);
 
-  const hairParts = [
-    [2.76, 0.64, 2.76, 0, hy + 0.12, 0],               // верх
-    [2.76, 2.35, 0.55, 0, 0.12, hz + 0.1],             // потилиця
-    [0.3, 1.55, 2.6, hx + 0.1, 0.55, 0.05],            // скроні
-    [0.3, 1.55, 2.6, -hx - 0.1, 0.55, 0.05],
-    [2.76, 0.56, 0.34, 0, hy - 0.2, -hz - 0.06],       // чубок
-    [0.5, 0.5, 0.34, 0, hy - 0.55, -hz - 0.07],        // кучерик посередині
-  ];
-  for (const [w, h, d, x, y, z] of hairParts) box(w, h, d, PALETTE.hair, x, y, z, head.mesh);
+  // Волосся: кожна частина має тег, зачіска = набір видимих тегів
+  const hairMeshes = [];
+  const hairBox = (w, h, d, x, y, z, tag) => { const m = bm(w, h, d, mats.hair, x, y, z, head.mesh); m.userData.tag = tag; hairMeshes.push(m); return m; };
+  hairBox(2.76, 0.64, 2.76, 0, hy + 0.12, 0, 'top');
+  hairBox(2.76, 2.35, 0.55, 0, 0.12, hz + 0.1, 'back');
+  hairBox(0.3, 1.55, 2.6, hx + 0.1, 0.55, 0.05, 'side');
+  hairBox(0.3, 1.55, 2.6, -hx - 0.1, 0.55, 0.05, 'side');
+  hairBox(2.76, 0.56, 0.34, 0, hy - 0.2, -hz - 0.06, 'fringe');
+  hairBox(0.5, 0.5, 0.34, 0, hy - 0.55, -hz - 0.07, 'curl');
+  hairBox(2.76, 3.3, 0.55, 0, -1.35, hz + 0.1, 'long');                 // довге: ззаду
+  hairBox(0.3, 2.9, 1.6, hx + 0.1, -0.85, 0.55, 'long');                // і з боків
+  hairBox(0.3, 2.9, 1.6, -hx - 0.1, -0.85, 0.55, 'long');
+  const bun = hairBox(1.2, 1.2, 1.2, 0, hy + 0.95, 0.25, 'bun'); bun.rotation.set(0.2, 0.5, 0.2);
+
+  // Окуляри
+  const frameM = new THREE.MeshStandardMaterial({ color: 0x1a1824, roughness: 0.4 });
+  const lensM = new THREE.MeshStandardMaterial({ color: 0xbfd8ff, roughness: 0.1, transparent: true, opacity: 0.16, depthWrite: false });
+  const sunM = new THREE.MeshStandardMaterial({ color: 0x0f0d16, roughness: 0.25, transparent: true, opacity: 0.9 });
+  const glassesFor = (sun) => {
+    const g = new THREE.Group(); const gz = faceZ - 0.07;
+    for (const sx of [1, -1]) {
+      const cx = sx * 0.66, cy = 0.32, gw = 1.05, gh = 0.86, t = 0.1;
+      if (sun) { bm(gw, gh, 0.08, sunM, cx, cy, gz, g); }
+      else {
+        bm(gw, gh, 0.03, lensM, cx, cy, gz, g);
+        bm(gw, t, 0.1, frameM, cx, cy + gh / 2, gz, g); bm(gw, t, 0.1, frameM, cx, cy - gh / 2, gz, g);
+        bm(t, gh, 0.1, frameM, cx - gw / 2, cy, gz, g); bm(t, gh, 0.1, frameM, cx + gw / 2, cy, gz, g);
+      }
+      bm(0.08, 0.08, 1.5, frameM, sx * (hx + 0.03), cy + 0.08, -hz + 0.78, g);   // дужка до вуха
+    }
+    bm(0.3, 0.1, 0.1, frameM, 0, 0.45, gz, g);
+    if (sun) { bm(2.4, 0.1, 0.1, frameM, 0, 0.72, gz, g); }
+    head.mesh.add(g); return g;
+  };
+  const glassesRound = glassesFor(false), glassesSun = glassesFor(true);
+
+  // Головні убори
+  const capG = new THREE.Group(), beanieG = new THREE.Group();
+  bm(2.96, 1.15, 2.96, accentM, 0, hy + 0.43, 0, capG);
+  const brim = bm(2.7, 0.2, 1.9, accentD, 0, hy - 0.2, -hz - 0.85, capG); brim.rotation.x = 0.16;
+  bm(0.34, 0.2, 0.34, accentD, 0, hy + 1.07, 0, capG);
+  bm(3.0, 1.35, 3.0, accentM, 0, hy + 0.38, 0, beanieG);
+  bm(3.1, 0.5, 3.1, accentL, 0, hy - 0.05, 0, beanieG);
+  bm(0.9, 0.9, 0.9, accentL, 0, hy + 1.35, 0, beanieG);
+  head.mesh.add(capG, beanieG);
+
   // Навушники з мікрофоном
   const gearM = new THREE.MeshStandardMaterial({ color: PALETTE.gear, roughness: 0.5 });
-  const ringM = new THREE.MeshStandardMaterial({ color: 0x7b61ff, emissive: 0x7b61ff, emissiveIntensity: 0.7, roughness: 0.4 });
-  const add = (geo, m, x, y, z, rx = 0, rz = 0) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.rotation.set(rx, 0, rz); o.castShadow = true; head.mesh.add(o); return o; };
-  add(new THREE.BoxGeometry(3.5, 0.24, 0.5), gearM, 0, hy + 0.5, 0.05);
+  const ringM = new THREE.MeshStandardMaterial({ color: ACCENTS.purple, emissive: ACCENTS.purple, emissiveIntensity: 0.7, roughness: 0.4 });
+  const hpAll = [];
+  const add = (geo, m, x, y, z, rx = 0, rz = 0) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.rotation.set(rx, 0, rz); o.castShadow = true; head.mesh.add(o); hpAll.push(o); return o; };
+  const hpBand = add(new THREE.BoxGeometry(3.5, 0.24, 0.5), gearM, 0, hy + 0.5, 0.05);
   for (const sx of [1, -1]) {
     add(new THREE.BoxGeometry(0.24, 1.55, 0.5), gearM, sx * (hx + 0.3), hy + 0.5 - 0.72, 0.05);
     add(new THREE.CylinderGeometry(0.66, 0.66, 0.46, 24), gearM, sx * (hx + 0.52), 0.12, 0.05, 0, Math.PI / 2);
@@ -440,6 +677,47 @@ export async function createAvatarScene(container, opts = {}) {
   add(new THREE.BoxGeometry(0.1, 0.1, 1.5), gearM, hx + 0.6, -0.3, -hz - 0.6 + 0.2);
   add(new THREE.BoxGeometry(0.85, 0.1, 0.1), gearM, hx + 0.2, -0.45, -hz - 0.6 - 0.15);
   add(new THREE.SphereGeometry(0.17, 12, 10), gearM, hx - 0.25, -0.45, -hz - 0.75);
+
+  // ── Предмети на столі (стіл: x −7.6…5.5, поверхня y = 5.1; лампа, кружка й кактус вже стоять) ──
+  const deskTop = 5.1;
+  const booksG = new THREE.Group();
+  const stackDefs = [[1.9, 0.28, 1.4, 0x5a44cc, 0.14, 0], [1.7, 0.26, 1.25, 0xff9ec4, 0.41, 0.12], [1.5, 0.24, 1.1, 0xffb454, 0.66, -0.1]];
+  for (const [w, h, d, c, y, ry] of stackDefs) { const b = box(w, h, d, c, 0, y, 0, booksG); b.rotation.y = ry; }
+  booksG.position.set(-0.6, deskTop, -21.2); scene.add(booksG);
+
+  const duckG = new THREE.Group();
+  const yel = new THREE.MeshStandardMaterial({ color: 0xffd84d, roughness: 0.55 });
+  const orange = new THREE.MeshStandardMaterial({ color: 0xff9a2e, roughness: 0.6 });
+  const duckBody = new THREE.Mesh(new THREE.SphereGeometry(0.55, 16, 12), yel); duckBody.scale.set(1, 0.82, 1.15); duckBody.position.y = 0.48; duckBody.castShadow = true;
+  const duckHead = new THREE.Mesh(new THREE.SphereGeometry(0.34, 14, 10), yel); duckHead.position.set(0, 1.05, -0.3); duckHead.castShadow = true;
+  const duckTail = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.4, 8), yel); duckTail.rotation.x = -Math.PI / 2 - 0.5; duckTail.position.set(0, 0.7, 0.62);
+  duckG.add(duckBody, duckHead, duckTail);
+  bm(0.3, 0.1, 0.3, orange, 0, 1.0, -0.62, duckG);
+  bm(0.07, 0.1, 0.05, faceMat, 0.15, 1.12, -0.55, duckG); bm(0.07, 0.1, 0.05, faceMat, -0.15, 1.12, -0.55, duckG);
+  duckG.position.set(1.4, deskTop, -21.3); duckG.rotation.y = 0.35; scene.add(duckG);
+
+  const photoG = new THREE.Group();
+  const photoTex = canvasTex(240, 192, (ctx, w, h) => drawPainting(ctx, w, h));
+  const frameWood = new THREE.MeshStandardMaterial({ color: 0x5b3a1f, roughness: 0.6 });
+  bm(1.6, 1.3, 0.12, frameWood, 0, 0.65, 0, photoG);
+  const photoPlane = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 1.0), new THREE.MeshStandardMaterial({ map: photoTex, roughness: 0.7 }));
+  photoPlane.position.set(0, 0.65, -0.07); photoPlane.rotation.y = Math.PI; photoG.add(photoPlane);
+  bm(0.12, 1.0, 0.1, frameWood, 0, 0.5, 0.35, photoG).rotation.x = 0.45;
+  photoG.rotation.x = -0.1;
+  photoG.position.set(-4.7, deskTop, -21.0); scene.add(photoG);
+
+  // Гірлянда на задній стіні
+  const garlandG = new THREE.Group();
+  const gPts = [], N_G = 12;
+  for (let i = 0; i <= N_G; i++) { const t = (i / N_G) * 2 - 1; gPts.push(new V3(CX + t * 11, 27.2 - 2.5 * (1 - t * t), Z_BACK - 0.5)); }
+  garlandG.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(gPts), 48, 0.04, 5), new THREE.MeshStandardMaterial({ color: 0x1b1824, roughness: 0.8 })));
+  const bulbCols = [0xffd27a, 0xff9ec4, 0x9d8cff, 0x7be0c3];
+  gPts.forEach((pt, i) => {
+    if (i === 0 || i === N_G) return;
+    const b = new THREE.Mesh(new THREE.SphereGeometry(0.24, 10, 8), new THREE.MeshBasicMaterial({ color: bulbCols[i % 4] }));
+    b.position.set(pt.x, pt.y - 0.3, pt.z); garlandG.add(b);
+  });
+  scene.add(garlandG);
 
   // ── Стан ──
   const S = {
@@ -525,27 +803,29 @@ export async function createAvatarScene(container, opts = {}) {
     const W = container.clientWidth || 1, H = container.clientHeight || 1;
     renderer.setSize(W, H, false);
     renderer.domElement.style.width = W + 'px'; renderer.domElement.style.height = H + 'px';
-    // вільна зона = екран мінус панель чату
-    let freeW = W, freeH = H;
-    if (avoidEl) {
-      const r = avoidEl.getBoundingClientRect(), c = container.getBoundingClientRect();
-      if (r.width > 0 && r.height > 0) {
-        if (r.top - c.top > H * 0.3 && r.width > W * 0.7) freeH = Math.max(H * 0.3, r.top - c.top - 8);
-        else if (r.left - c.left > W * 0.4) freeW = Math.max(W * 0.4, r.left - c.left - 16);
-      }
+    // вільна зона = екран мінус панелі (чат праворуч, кастомізація ліворуч або внизу на телефоні)
+    let x0 = 0, x1 = W, freeH = H;
+    const c = container.getBoundingClientRect();
+    for (const el of avoidEls) {
+      const r = el.getBoundingClientRect();
+      if (r.width <= 0 || r.height <= 0) continue;
+      if (r.top - c.top > H * 0.3 && r.width > W * 0.7) freeH = Math.min(freeH, Math.max(H * 0.3, r.top - c.top - 8));
+      else if (r.right - c.left < W * 0.55) x0 = Math.max(x0, r.right - c.left + 16);
+      else if (r.left - c.left > W * 0.4) x1 = Math.min(x1, r.left - c.left - 16);
     }
+    const freeW = Math.max(W * 0.3, x1 - x0), freeCx = x0 + (x1 - x0) / 2;
     const dist = Math.max(HALF_H / (tanV * (freeH / H)), HALF_W / (tanV * (freeW / H)));
     camera.aspect = W / H;
     camera.position.set(CX, 12.8, Z_CHAR - dist);
     camera.lookAt(target);
-    camera.setViewOffset(W, H, (W - freeW) / 2, (H - freeH) / 2, W, H);
+    camera.setViewOffset(W, H, W / 2 - freeCx, (H - freeH) / 2, W, H);
     // ширина оболонки: бічні стіни трохи заходять у кадр, а за ними коробка продовжується
     const worldPerPx = (2 * (dist + (Z_CHAR - Z_BACK) * -1) * tanV) / H;
     const halfW = Math.max(12, (freeW / 2) * worldPerPx * 0.92);
     layoutShell(halfW, camera.position.z - 3);
   }
   new ResizeObserver(resize).observe(container);
-  if (avoidEl) new ResizeObserver(resize).observe(avoidEl);
+  avoidEls.forEach((el) => new ResizeObserver(resize).observe(el));
   resize();
 
   // ── Цикл ──
@@ -583,12 +863,88 @@ export async function createAvatarScene(container, opts = {}) {
   }
   requestAnimationFrame(frame);
 
+  // ── Вигляд (кастомізація) ──
+  let look = loadLook();
+  const colorOfHex = (hex) => new THREE.Color(hex);
+  const tint = (hex, k) => '#' + colorOfHex(hex).multiplyScalar(k).getHexString();
+  const _n = colorOfHex(PALETTE.skin2), _h = colorOfHex(PALETTE.head), noseTint = [_n.r / _h.r, _n.g / _h.g, _n.b / _h.b];   // ніс трохи темніший за шкіру
+  const redraw = (tex, draw, clear = false) => {
+    const cv = tex.image, ctx = cv.getContext('2d');
+    if (clear) ctx.clearRect(0, 0, cv.width, cv.height);
+    draw(ctx, cv.width, cv.height); tex.needsUpdate = true;
+  };
+  const collectMats = (obj) => { const out = []; if (obj) obj.traverse((o) => { if (o.isMesh) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => out.push(m)); }); return out; };
+  const deskMats = collectMats(byId.Cube004), chairMats = collectMats(byId.Cube019);
+  const HAIR_TAGS = { fringe: ['top', 'back', 'side', 'fringe', 'curl'], short: ['top', 'back', 'side'], long: ['top', 'back', 'side', 'fringe', 'long'], bun: ['top', 'back', 'side', 'fringe', 'bun'], bald: [] };
+  const updateHair = () => {
+    const tags = HAIR_TAGS[look.hairStyle], hat = look.headwear !== 'none';
+    hairMeshes.forEach((m) => { const t = m.userData.tag; m.visible = tags.includes(t) && !(hat && (t === 'fringe' || t === 'curl' || t === 'bun')); });
+  };
+  const updateHeadphones = () => {
+    hpAll.forEach((o) => { o.visible = look.headphones; });
+    hpBand.visible = look.headphones && look.headwear === 'none';   // дуга не лізе крізь шапку
+  };
+  const A = {
+    wall(id) { const d = WALLS[id], base = d.hex || wallHex, side = d.hex ? tint(d.hex, 0.94) : sideHex; seed = 11; redraw(wallTexBase, drawWall(base, d.kind)); redraw(sideTexBase, drawWall(side, d.kind)); leftTex.needsUpdate = rightTex.needsUpdate = true; },
+    floor(id) { const d = FLOORS[id]; seed = 13; redraw(floorTex, drawFloor(d.hex || floorHex, d.kind)); },
+    rug(id) { rug.visible = id !== 'none'; if (id !== 'none') redraw(rugTex, drawRug(RUGS[id]), true); },
+    painting(id) { painting.visible = id !== 'none'; if (id !== 'none') redraw(paintTex, PAINTINGS[id]); },
+    clock(v) { clock.visible = v; }, shelf(v) { shelfG.visible = v; }, plant(v) { floorPlant.visible = v; }, garland(v) { garlandG.visible = v; },
+    desk(id) { deskMats.forEach((m) => m.color.set(DESKS[id])); },
+    chair(id) { chairMats.forEach((m) => m.color.set(CHAIRS[id])); },
+    lamp(v) { lamp.visible = v; lampLight.visible = v; }, mug(v) { mug.visible = v; },
+    cactus(v) { if (byId.Quadsphere002) byId.Quadsphere002.visible = v; },
+    books(v) { booksG.visible = v; }, duck(v) { duckG.visible = v; }, photo(v) { photoG.visible = v; },
+    outfit(id) {
+      const tee = id === 'tee';
+      hoodG.visible = !tee; teeCollar.visible = tee;
+      for (const n of ['foreL', 'foreR']) P[n].mesh.material = tee ? mats.head : mats.hoodie;   // у футболки передпліччя голі
+    },
+    top(id) { mats.hoodie.color.set(TOPS[id]); mats.hoodie2.color.set(id === 'purple' ? PALETTE.hoodie2 : tint(TOPS[id], 0.72)); },
+    pants(id) { mats.jeans.color.set(PANTS[id]); },
+    shoes(id) { mats.shoe.color.set(SHOES[id]); },
+    skin(id) { const c = colorOfHex(SKINS[id]); mats.head.color.copy(c); mats.skin2.color.setRGB(c.r * noseTint[0], c.g * noseTint[1], c.b * noseTint[2]); },
+    hairStyle() { updateHair(); },
+    hairColor(id) { mats.hair.color.set(HAIRS[id]); browMat.color.set(HAIRS[id]); },
+    headwear(id) { capG.visible = id === 'cap'; beanieG.visible = id === 'beanie'; updateHair(); updateHeadphones(); },
+    glasses(id) { glassesRound.visible = id === 'round'; glassesSun.visible = id === 'sun'; },
+    headphones() { updateHeadphones(); },
+    scarf(v) { scarfG.visible = v; },
+    accent(id) {
+      const c = ACCENTS[id]; accentM.color.set(c); accentD.color.set(tint(c, 0.78)); accentL.color.copy(colorOfHex(c).lerp(new THREE.Color(0xffffff), 0.35));
+      ringM.color.set(c); ringM.emissive.set(c);
+    },
+  };
+  const TEXTURE_KEYS = new Set(['wall', 'floor', 'rug', 'painting']);
+  const applyKeys = (keys) => { for (const k of keys) A[k](look[k]); };
+  // старт: текстури не перемальовуємо, якщо вибрано стандартні, щоб початковий вигляд лишався як був
+  applyKeys(Object.keys(DEFAULT_LOOK).filter((k) => !TEXTURE_KEYS.has(k) || look[k] !== DEFAULT_LOOK[k]));
+
   const api = {
     /** 'idle' | 'thinking' | 'speaking' */
     setState(s) { S.state = s; },
     /** гучність 0..1 з аудіо — керує відкриттям рота */
     setMouth(v) { S.mouthTarget = clamp(v, 0, 1); S.mouthSetAt = S.t; },
     get state() { return S.state; },
+    /** каталог варіантів для інтерфейсу кастомізації */
+    catalog: CATALOG,
+    defaults: { ...DEFAULT_LOOK },
+    getLook() { return { ...look }; },
+    /** змінює вигляд: setLook({ wall: 'mint', glasses: 'sun' }) */
+    setLook(patch) {
+      const changed = [];
+      for (const k of Object.keys(patch || {})) if (validValue(k, patch[k]) && look[k] !== patch[k]) { look[k] = patch[k]; changed.push(k); }
+      applyKeys(changed); if (changed.length) saveLook(look);
+      return { ...look };
+    },
+    resetLook() { return api.setLook(DEFAULT_LOOK); },
+    randomLook() {
+      const pick = (a) => a[Math.floor(Math.random() * a.length)];
+      const common = ['clock', 'shelf', 'plant', 'lamp', 'mug', 'cactus', 'headphones'];
+      const next = {};
+      for (const it of Object.values(ITEMS)) next[it.key] = it.type === 'toggle' ? (common.includes(it.key) ? Math.random() < 0.8 : Math.random() < 0.35) : pick(it.options).id;
+      return api.setLook(next);
+    },
   };
   window.AvatarScene = api;
   return api;
@@ -597,7 +953,7 @@ export async function createAvatarScene(container, opts = {}) {
 // Автозапуск, якщо на сторінці є #stage
 const stage = document.getElementById('stage');
 if (stage) {
-  createAvatarScene(stage, { bubble: document.getElementById('think-bubble'), avoid: document.getElementById('chat') })
+  createAvatarScene(stage, { bubble: document.getElementById('think-bubble'), avoid: [document.getElementById('chat'), document.getElementById('custom')] })
     .then(() => {
       document.documentElement.classList.add('scene-ready');
       document.dispatchEvent(new CustomEvent('avatar-ready'));
